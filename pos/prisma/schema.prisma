@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  username        String    @unique
+  code            String
+  role            String    @default("cashier")
+  stockPermission Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  transactions Transaction[]
+  expenses     Expense[]
+  stockLogs    StockLog[]
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  category  String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  variants ProductVariant[]
+}
+
+model ProductVariant {
+  id               String  @id @default(uuid())
+  productId        String
+  name             String
+  sellPrice        Float
+  costPrice        Float
+  stock            Int     @default(0)
+  lowStockThreshold Int    @default(5)
+  barcode          String?
+
+  product           Product            @relation(fields: [productId], references: [id])
+  transactionItems  TransactionItem[]
+  expenseDeliveries ExpenseDelivery[]
+  stockLogs         StockLog[]
+}
+
+model Transaction {
+  id          String    @id @default(uuid())
+  cashierId   String
+  total       Float
+  paymentType String
+  createdAt   DateTime  @default(now())
+
+  cashier User              @relation(fields: [cashierId], references: [id])
+  items   TransactionItem[]
+}
+
+model TransactionItem {
+  id            String @id @default(uuid())
+  transactionId String
+  variantId     String
+  quantity      Int
+  priceAtSale   Float
+
+  transaction Transaction     @relation(fields: [transactionId], references: [id])
+  variant     ProductVariant  @relation(fields: [variantId], references: [id])
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  type      String
+  amount    Float
+  note      String   @default("")
+  cashierId String
+  createdAt DateTime @default(now())
+
+  cashier          User              @relation(fields: [cashierId], references: [id])
+  expenseDelivery  ExpenseDelivery?
+}
+
+model ExpenseDelivery {
+  id               String @id @default(uuid())
+  expenseId        String @unique
+  variantId        String
+  quantityDelivered Int
+
+  expense Expense         @relation(fields: [expenseId], references: [id])
+  variant ProductVariant  @relation(fields: [variantId], references: [id])
+}
+
+model StockLog {
+  id           String   @id @default(uuid())
+  variantId    String
+  userId       String
+  changeAmount Int
+  reason       String   @default("")
+  createdAt    DateTime @default(now())
+
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  user    User           @relation(fields: [userId], references: [id])
+}
