@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Edit } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatDateTime } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useProductCache } from "@/hooks/useProductCache";
-import { offlineDB } from "@/lib/db";
-
-interface StockLog {
-  id: string;
-  changeAmount: number;
-  reason: string;
-  createdAt: string;
-  user: { username: string };
-  variant: { name: string; product: { name: string } };
-}
+import { useProducts } from "@/app/_lib/query/queries/useProducts";
+import { useStockLogs } from "@/app/_lib/query/queries/useStockLogs";
+import { useStockEdit } from "@/app/_lib/query/mutations/useStockEdit";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
 export default function AdminStocksPage() {
-  const { products: cached, loading: cacheLoading, lastSync } = useProductCache();
-  const { status, refreshPending } = useOnlineStatus();
-  const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
-  const [logsLoading, setLogsLoading] = useState(true);
+  const { data: cached = [], isLoading, dataUpdatedAt } = useProducts();
+  const { data: stockLogs = [], isLoading: logsLoading } = useStockLogs();
+  const { status } = useOnlineStatus();
   const [editTarget, setEditTarget] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ changeAmount: 0, reason: "" });
+
+  const stockEdit = useStockEdit(
+    () => setEditTarget(null),
+    () => setEditTarget(null),
+  );
 
   const variants = cached.flatMap((p) =>
     p.variants.map((v) => ({
@@ -37,17 +33,6 @@ export default function AdminStocksPage() {
     }))
   );
 
-  function loadLogs() {
-    setLogsLoading(true);
-    fetch("/api/stocks")
-      .then((r) => r.json())
-      .then((d) => setStockLogs(d.stockLogs || []))
-      .catch(() => setStockLogs([]))
-      .finally(() => setLogsLoading(false));
-  }
-
-  useEffect(() => { loadLogs(); }, []);
-
   function getEditTarget() {
     return variants.find((v) => v.id === editTarget) || null;
   }
@@ -57,57 +42,17 @@ export default function AdminStocksPage() {
     setEditForm({ changeAmount: 0, reason: "" });
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!editTarget) return;
-    if (editForm.changeAmount === 0) {
-      toast.error("Change amount cannot be 0");
-      return;
-    }
-
-    const payload = {
+    if (editForm.changeAmount === 0) return;
+    stockEdit.mutate({
       variantId: editTarget,
       changeAmount: editForm.changeAmount,
       reason: editForm.reason,
-    };
-
-    const doServer = async () => {
-      const res = await fetch("/api/stocks", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-    };
-
-    if (status === "offline") {
-      await offlineDB.pendingActions.add({
-        type: "stockEdit",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      toast.success(`Stock queued: ${editForm.changeAmount > 0 ? "+" : ""}${editForm.changeAmount}`);
-      setEditTarget(null);
-      return;
-    }
-
-    try {
-      await doServer();
-      toast.success(`Stock updated: ${editForm.changeAmount > 0 ? "+" : ""}${editForm.changeAmount}`);
-    } catch {
-      await offlineDB.pendingActions.add({
-        type: "stockEdit",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      toast.success(`Stock queued: ${editForm.changeAmount > 0 ? "+" : ""}${editForm.changeAmount}`);
-    }
-    setEditTarget(null);
-    loadLogs();
+    });
   }
 
-  if (cacheLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
 
   const target = editTarget ? getEditTarget() : null;
 
@@ -117,9 +62,9 @@ export default function AdminStocksPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Stocks</h2>
-          {lastSync && (
+          {dataUpdatedAt && (
             <span className="text-xs text-gray-400">
-              Last synced: {new Date(lastSync).toLocaleString()}
+              Last synced: {new Date(dataUpdatedAt).toLocaleString()}
             </span>
           )}
         </div>
@@ -197,7 +142,12 @@ export default function AdminStocksPage() {
                   placeholder="e.g. damaged, miscount"
                 />
               </div>
-              <button onClick={handleSave} className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700">
+              <button
+                onClick={handleSave}
+                disabled={stockEdit.isPending || editForm.changeAmount === 0}
+                className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {stockEdit.isPending && <Spinner />}
                 {status === "offline" ? "Queue" : "Save"} Changes
               </button>
             </div>

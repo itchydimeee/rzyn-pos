@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { Providers } from "./_lib/Providers";
 
 export const metadata: Metadata = {
   title: "R-ZYN POS System",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background antialiased">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Toaster position="top-right" richColors />
       </body>
     </html>

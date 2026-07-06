@@ -6,31 +6,18 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { useProductCache } from "@/hooks/useProductCache";
-
-interface ReportData {
-  totalSales: number;
-  totalProfit: number;
-  totalExpenses: number;
-  expenseByType: Record<string, number>;
-  cashSales: number;
-  gcashSales: number;
-  transactionCount: number;
-}
+import { useReports } from "@/app/_lib/query/queries/useReports";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
 export default function AdminReportsPage() {
   const [filter, setFilter] = useState("daily");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [data, setData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const { data, isLoading } = useReports(filter, date, enabled);
   const { lastSync } = useProductCache();
 
-  async function loadReport() {
-    setLoading(true);
-    const params = new URLSearchParams({ filter, date });
-    const res = await fetch("/api/admin/reports?" + params);
-    const json = await res.json();
-    setData(json);
-    setLoading(false);
+  function loadReport() {
+    setEnabled(true);
   }
 
   async function handleExport() {
@@ -69,20 +56,20 @@ export default function AdminReportsPage() {
       </div>
 
       <div className="bg-white rounded-xl p-4 shadow-sm flex items-center gap-4">
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+        <select value={filter} onChange={(e) => { setFilter(e.target.value); setEnabled(false); }} className="px-3 py-2 border rounded-lg text-sm">
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
         </select>
         {filter === "daily" && (
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="px-3 py-2 border rounded-lg text-sm" />
+          <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setEnabled(false); }} className="px-3 py-2 border rounded-lg text-sm" />
         )}
-        <button onClick={loadReport} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
-          Generate
+        <button onClick={loadReport} disabled={isLoading} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+          {isLoading && <Spinner />} Generate
         </button>
       </div>
 
-      {loading && <div className="flex items-center justify-center h-32"><div className="loader" /></div>}
+      {isLoading && <div className="flex items-center justify-center h-32"><div className="loader" /></div>}
 
       {data && (
         <div className="grid gap-4">
@@ -134,7 +121,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {!data && !loading && (
+      {!data && !isLoading && (
         <div className="text-center text-gray-400 py-12">Select a filter and click Generate to view reports</div>
       )}
     </div>

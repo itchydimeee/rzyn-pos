@@ -1,56 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Plus, Edit, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { formatCurrency } from "@/lib/utils";
+import { useAdminProducts, type Product, type Variant } from "@/app/_lib/query/queries/useAdminProducts";
+import { useCreateProduct } from "@/app/_lib/query/mutations/useCreateProduct";
+import { useUpdateProduct } from "@/app/_lib/query/mutations/useUpdateProduct";
+import { useDeleteProduct } from "@/app/_lib/query/mutations/useDeleteProduct";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
-interface Variant {
+interface FormVariant {
   id?: string;
   name: string;
   sellPrice: number;
   costPrice: number;
   stock: number;
   lowStockThreshold: number;
-  barcode?: string;
+  barcode: string;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  variants: Variant[];
-}
+const emptyForm = { name: "", category: "", variants: [{ name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "" }] };
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: products = [], isLoading } = useAdminProducts();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProductRef, setEditingProductRef] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ name: "", category: "", variants: [{ name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "" }] });
+  const [form, setForm] = useState(emptyForm);
 
-  function loadProducts() {
-    setLoading(true);
-    fetch("/api/admin/products")
-      .then((r) => r.json())
-      .then(setProducts)
-      .finally(() => setLoading(false));
-  }
+  const createProduct = useCreateProduct(
+    () => setShowModal(false),
+    () => setShowModal(true),
+  );
 
-  useEffect(() => { loadProducts(); }, []);
+  const updateProduct = useUpdateProduct(
+    () => setShowModal(false),
+    () => setShowModal(true),
+  );
+
+  const deleteProduct = useDeleteProduct(
+    () => setDeleteTarget(null),
+  );
 
   function openAdd() {
     setEditingProduct(null);
-    setForm({ name: "", category: "", variants: [{ name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "" }] });
+    setEditingProductRef(null);
+    setForm(emptyForm);
     setShowModal(true);
   }
 
   function openEdit(product: Product) {
     setEditingProduct(product);
+    setEditingProductRef(product);
     setForm({
       name: product.name,
       category: product.category,
@@ -81,32 +86,15 @@ export default function AdminProductsPage() {
     setForm({ ...form, variants: form.variants.filter((_, i) => i !== idx) });
   }
 
-  async function handleSave() {
-    const url = editingProduct
-      ? `/api/admin/products/${editingProduct.id}`
-      : "/api/admin/products";
-    const method = editingProduct ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    if (!res.ok) { toast.error("Failed to save"); return; }
-
-    toast.success(editingProduct ? "Product updated" : "Product added");
-    setShowModal(false);
-    loadProducts();
+  function handleSave() {
+    if (editingProductRef) {
+      updateProduct.mutate({ id: editingProductRef.id, data: form });
+    } else {
+      createProduct.mutate(form);
+    }
   }
 
-  async function handleDelete(id: string) {
-    await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
-    toast.success("Product deleted");
-    loadProducts();
-  }
-
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
 
   return (
     <div className="space-y-6">
@@ -217,14 +205,26 @@ export default function AdminProductsPage() {
               </div>
             ))}
           </div>
-          <button onClick={handleSave} className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700">Save Product</button>
+          <button
+            onClick={handleSave}
+            disabled={createProduct.isPending || updateProduct.isPending}
+            className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {(createProduct.isPending || updateProduct.isPending) && <Spinner />}
+            Save Product
+          </button>
         </div>
       </Modal>
 
       <ConfirmModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            setDeleteTarget(null);
+            deleteProduct.mutate(deleteTarget);
+          }
+        }}
         title="Delete Product"
         message="This will mark the product as inactive. Past sales records will still be accurate."
         confirmLabel="Delete"

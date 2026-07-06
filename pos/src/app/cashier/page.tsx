@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import { Search, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatCurrency } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useProductCache } from "@/hooks/useProductCache";
-import { offlineDB } from "@/lib/db";
+import { useProducts } from "@/app/_lib/query/queries/useProducts";
+import { useCheckout } from "@/app/_lib/query/mutations/useCheckout";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
 interface CartItem {
   variantId: string;
@@ -19,8 +20,9 @@ interface CartItem {
 }
 
 export default function CashierPOSPage() {
-  const { products, loading, lastSync, updateLocalStock } = useProductCache();
-  const { status, refreshPending } = useOnlineStatus();
+  const { data: apiProducts = [], isLoading } = useProducts();
+  const { lastSync } = useProductCache();
+  const { status } = useOnlineStatus();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -28,7 +30,15 @@ export default function CashierPOSPage() {
   const [paymentType, setPaymentType] = useState<"cash" | "gcash">("cash");
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
 
-  const filtered = products.filter(
+  const checkout = useCheckout(
+    () => {
+      setCart([]);
+      setShowCheckoutConfirm(false);
+    },
+    () => setShowCheckoutConfirm(true),
+  );
+
+  const filtered = apiProducts.filter(
     (p) =>
       p.isActive !== false &&
       (p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -36,11 +46,11 @@ export default function CashierPOSPage() {
   );
 
   function getSelectedProduct() {
-    return products.find((p) => p.id === selectedProduct) || null;
+    return apiProducts.find((p) => p.id === selectedProduct) || null;
   }
 
   function handleProductClick(productId: string) {
-    const product = products.find((p) => p.id === productId);
+    const product = apiProducts.find((p) => p.id === productId);
     if (!product) return;
     if (product.variants.length === 1) {
       const v = product.variants[0];
@@ -80,64 +90,18 @@ export default function CashierPOSPage() {
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-  async function handleCheckout() {
+  function handleCheckout() {
     const payload = {
       items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
       paymentType,
     };
-
-    if (status === "offline") {
-      await offlineDB.pendingActions.add({
-        type: "checkout",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      for (const item of cart) {
-        updateLocalStock(item.variantId, -item.quantity);
-      }
-      toast.success(`Sale queued (${formatCurrency(total)}) — will sync when online`);
-      setCart([]);
-      setShowCheckoutConfirm(false);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "Checkout failed");
-        return;
-      }
-      toast.success(`Sale completed: ${formatCurrency(total)}`);
-      setCart([]);
-      setShowCheckoutConfirm(false);
-      for (const item of cart) {
-        updateLocalStock(item.variantId, -item.quantity);
-      }
-    } catch {
-      await offlineDB.pendingActions.add({
-        type: "checkout",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      for (const item of cart) {
-        updateLocalStock(item.variantId, -item.quantity);
-      }
-      toast.success(`Sale queued (${formatCurrency(total)}) — will sync when online`);
-      setCart([]);
-      setShowCheckoutConfirm(false);
-    }
+    checkout.mutate(payload);
   }
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
 
   const selected = getSelectedProduct();
+  const isPending = checkout.isPending;
 
   return (
     <>
@@ -240,9 +204,11 @@ export default function CashierPOSPage() {
               </div>
               <button
                 onClick={() => setShowCheckoutConfirm(true)}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+                disabled={isPending}
+                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {status === "offline" ? "Queue" : "Checkout"} - {formatCurrency(total)}
+                {isPending && <Spinner />}
+                {isPending ? "Processing..." : status === "offline" ? `Queue - ${formatCurrency(total)}` : `Checkout - ${formatCurrency(total)}`}
               </button>
             </div>
           )}

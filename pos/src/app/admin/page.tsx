@@ -1,35 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { AlertTriangle } from "lucide-react";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { useProductCache } from "@/hooks/useProductCache";
-
-interface DashboardData {
-  todaySales: number;
-  todayProfit: number;
-  todayExpenses: number;
-  salesChart: { date: string; total: number }[];
-  topProducts: { name: string; variantName: string; totalSold: number }[];
-  lowStock: { id: string; productName: string; variantName: string; stock: number; threshold: number }[];
-}
+import { useDashboard } from "@/app/_lib/query/queries/useDashboard";
 
 export default function AdminDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, isError } = useDashboard();
   const { lastSync } = useProductCache();
 
-  useEffect(() => {
-    fetch("/api/admin/dashboard")
-      .then((r) => r.json())
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
-  if (!data) return <div>Failed to load</div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
+  if (isError || !data) return <div className="text-center py-12 text-gray-500">Failed to load dashboard</div>;
 
   return (
     <div className="space-y-6">

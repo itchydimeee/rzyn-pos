@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { offlineDB } from "@/lib/db";
 
 export type SyncStatus = "online" | "offline" | "syncing";
@@ -11,6 +12,7 @@ export function useOnlineStatus() {
   );
   const [pendingCount, setPendingCount] = useState(0);
   const syncingRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const countPending = useCallback(async () => {
     const count = await offlineDB.pendingActions.count();
@@ -66,6 +68,7 @@ export function useOnlineStatus() {
       }
 
       await countPending();
+      queryClient.invalidateQueries();
     } finally {
       syncingRef.current = false;
       setStatus(navigator.onLine ? "online" : "offline");

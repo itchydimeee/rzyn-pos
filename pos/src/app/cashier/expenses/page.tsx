@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -9,30 +8,18 @@ import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useProductCache } from "@/hooks/useProductCache";
-import { offlineDB } from "@/lib/db";
-
-interface Expense {
-  id: string;
-  type: string;
-  amount: number;
-  note: string;
-  createdAt: string;
-  cashier: { username: string };
-  expenseDelivery?: {
-    quantityDelivered: number;
-    variant: { name: string; product: { name: string } };
-  } | null;
-}
+import { useExpenses } from "@/app/_lib/query/queries/useExpenses";
+import { useCreateExpense } from "@/app/_lib/query/mutations/useCreateExpense";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
 const EXPENSE_TYPES = ["bill", "rent", "supplies", "delivery", "other"];
 
 export default function CashierExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: expenses = [], isLoading } = useExpenses();
+  const { products } = useProductCache();
+  const { status } = useOnlineStatus();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const { products } = useProductCache();
-  const { status, refreshPending } = useOnlineStatus();
   const [form, setForm] = useState({
     type: "bill",
     amount: "",
@@ -41,16 +28,13 @@ export default function CashierExpensesPage() {
     deliveryQuantity: "",
   });
 
-  function load() {
-    setLoading(true);
-    fetch("/api/expenses")
-      .then((r) => r.json())
-      .then((data) => setExpenses(Array.isArray(data) ? data : []))
-      .catch(() => setExpenses([]))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => { load(); }, []);
+  const createExpense = useCreateExpense(
+    () => {
+      setShowAddModal(false);
+      setShowConfirm(false);
+    },
+    () => setShowAddModal(true),
+  );
 
   const productOptions = products.filter((x) => x.variants.length > 0);
 
@@ -59,7 +43,7 @@ export default function CashierExpensesPage() {
     setShowAddModal(true);
   }
 
-  async function handleSave() {
+  function handleSave() {
     const payload = {
       type: form.type,
       amount: parseFloat(form.amount) || 0,
@@ -67,48 +51,10 @@ export default function CashierExpensesPage() {
       deliveryVariantId: form.type === "delivery" ? form.deliveryVariantId : undefined,
       deliveryQuantity: form.type === "delivery" ? (parseInt(form.deliveryQuantity) || 0) : undefined,
     };
-
-    const doServer = async () => {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-    };
-
-    if (status === "offline") {
-      await offlineDB.pendingActions.add({
-        type: "expense",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      toast.success("Expense queued — will sync when online");
-      setShowAddModal(false);
-      setShowConfirm(false);
-      return;
-    }
-
-    try {
-      await doServer();
-      toast.success("Expense saved");
-    } catch {
-      await offlineDB.pendingActions.add({
-        type: "expense",
-        payload,
-        createdAt: Date.now(),
-      });
-      await refreshPending();
-      toast.success("Expense queued — will sync when online");
-    }
-
-    setShowAddModal(false);
-    setShowConfirm(false);
-    load();
+    createExpense.mutate(payload);
   }
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
 
   return (
     <>
@@ -215,8 +161,10 @@ export default function CashierExpensesPage() {
             </div>
             <button
               onClick={() => setShowConfirm(true)}
-              className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700"
+              disabled={createExpense.isPending}
+              className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {createExpense.isPending && <Spinner />}
               {status === "offline" ? "Queue Expense" : "Save Expense"}
             </button>
           </div>

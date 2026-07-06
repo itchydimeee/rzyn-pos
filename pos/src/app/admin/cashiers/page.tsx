@@ -1,22 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { Plus, Key, UserCheck, UserX, Eye, EyeOff, Shield, ShieldOff } from "lucide-react";
+import { useState } from "react";
+import { Plus, Key, UserCheck, UserX, Eye, EyeOff, Shield, ShieldOff, Loader2 } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmModal } from "@/components/ConfirmModal";
-
-interface Cashier {
-  id: string;
-  username: string;
-  code: string;
-  stockPermission: boolean;
-  isActive: boolean;
-}
+import { useCashiers, type Cashier } from "@/app/_lib/query/queries/useCashiers";
+import { useCreateCashier } from "@/app/_lib/query/mutations/useCreateCashier";
+import { useUpdateCashier } from "@/app/_lib/query/mutations/useUpdateCashier";
+import { Spinner } from "@/app/_lib/query/Spinner";
 
 export default function AdminCashiersPage() {
-  const [cashiers, setCashiers] = useState<Cashier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: cashiers = [], isLoading } = useCashiers();
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ username: "", code: "" });
   const [resetTarget, setResetTarget] = useState<{ id: string; username: string } | null>(null);
@@ -28,6 +22,23 @@ export default function AdminCashiersPage() {
     username: string;
   } | null>(null);
 
+  const createCashier = useCreateCashier(
+    () => {
+      setShowAddModal(false);
+      setAddForm({ username: "", code: "" });
+    },
+    () => setShowAddModal(true),
+  );
+
+  const updateCashier = useUpdateCashier(
+    (vars) => {
+      if (vars.code) {
+        setResetTarget(null);
+        setResetCode("");
+      }
+    },
+  );
+
   function toggleCodeVisibility(id: string) {
     setVisibleCodes((prev) => {
       const next = new Set(prev);
@@ -36,72 +47,25 @@ export default function AdminCashiersPage() {
     });
   }
 
-  function loadCashiers() {
-    setLoading(true);
-    fetch("/api/admin/cashiers")
-      .then((r) => r.json())
-      .then(setCashiers)
-      .finally(() => setLoading(false));
+  function handleAdd() {
+    createCashier.mutate(addForm);
   }
 
-  useEffect(() => { loadCashiers(); }, []);
-
-  async function handleAdd() {
-    const res = await fetch("/api/admin/cashiers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addForm),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      toast.error(data.error || "Failed to add");
-      return;
-    }
-    toast.success("Cashier added");
-    setShowAddModal(false);
-    setAddForm({ username: "", code: "" });
-    loadCashiers();
-  }
-
-  async function handleResetCode() {
+  function handleResetCode() {
     if (!resetTarget) return;
-    if (resetCode.length !== 6) { toast.error("Code must be 6 digits"); return; }
-    await fetch(`/api/admin/cashiers/${resetTarget.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: resetCode }),
-    });
-    toast.success("Code reset for " + resetTarget.username);
-    setResetTarget(null);
-    setResetCode("");
-    loadCashiers();
+    if (resetCode.length !== 6) return;
+    updateCashier.mutate({ id: resetTarget.id, code: resetCode });
   }
 
-  async function togglePermission(cashier: Cashier) {
-    await fetch(`/api/admin/cashiers/${cashier.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stockPermission: !cashier.stockPermission }),
-    });
-    toast.success(`Stock permission ${cashier.stockPermission ? "disabled" : "enabled"} for ${cashier.username}`);
-    loadCashiers();
+  function togglePermission(cashier: Cashier) {
+    updateCashier.mutate({ id: cashier.id, stockPermission: !cashier.stockPermission });
   }
 
-  async function toggleActive(cashier: Cashier) {
-    await fetch(`/api/admin/cashiers/${cashier.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !cashier.isActive }),
-    });
-    toast.success(
-      cashier.isActive
-        ? `${cashier.username} has been deactivated`
-        : `${cashier.username} has been reactivated`
-    );
-    loadCashiers();
+  function toggleActive(cashier: Cashier) {
+    updateCashier.mutate({ id: cashier.id, isActive: !cashier.isActive });
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="loader" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-full"><div className="loader" /></div>;
 
   return (
     <div className="h-full flex flex-col">
@@ -273,9 +237,10 @@ export default function AdminCashiersPage() {
           <div className="pt-1">
             <button
               onClick={handleAdd}
-              disabled={!addForm.username || addForm.code.length !== 6}
-              className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!addForm.username || addForm.code.length !== 6 || createCashier.isPending}
+              className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {createCashier.isPending && <Spinner />}
               Create Cashier
             </button>
           </div>
@@ -302,9 +267,10 @@ export default function AdminCashiersPage() {
           </div>
           <button
             onClick={handleResetCode}
-            disabled={resetCode.length !== 6}
-            className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={resetCode.length !== 6 || updateCashier.isPending}
+            className="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
+            {updateCashier.isPending && <Spinner />}
             Save New Passcode
           </button>
         </div>
