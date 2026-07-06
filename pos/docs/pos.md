@@ -22,6 +22,7 @@ A simple, offline-friendly Point of Sale system built for a single grocery store
 | Frontend + Backend | Next.js (App Router, API routes) | One project, easy to build and manage, no need for a separate backend at this size |
 | Database | Supabase (Postgres) | Free tier, no server setup needed |
 | ORM | Prisma | Easy to read and write database code, works well with Next.js |
+| Server State | TanStack React Query | Caching, optimistic mutations, loading states, auto-refetch — replaces raw `useEffect`+`fetch` patterns |
 | UI Components | shadcn/ui | Clean, ready-made components (buttons, modals, tables) |
 | Icons | lucide-react | Simple icon set that matches shadcn |
 | Auth | Custom (username + 6-digit code) | No need for outside auth service, small user count |
@@ -200,6 +201,99 @@ If a separate backend was needed, Express is the better pick over Nest for this 
 - Soft delete on products, keeps old reports accurate
 - Toast notifications on all actions
 - Confirmation modals before delete, update, or checkout — prevents accidental clicks
+- Optimistic UI updates on all mutations — the interface updates immediately before the server confirms, then rolls back on failure
+
+---
+
+## 6.1 TanStack React Query Conventions
+
+**Server state library used across the entire app. All data fetching and mutations go through it — never raw `useEffect`+`fetch`.**
+
+### Query Keys
+
+- Located in `src/app/_lib/query/queryKeys.ts`
+- Hierarchical, namespaced keys: `["admin", "products"]`, `["admin", "cashiers"]`, `["products"]`, `["expenses"]`
+- Use `byId(id)` factory for single-item caches
+- Use `withParams(...)` for parameterized queries (reports)
+
+### Queries (`useQuery`)
+
+- One query hook per data source: `useDashboard()`, `useProducts()`, `useExpenses()`, etc.
+- All query hooks live in `src/app/_lib/query/queries/`
+- Default `staleTime: 30_000` (30s) — products use `15_000` (15s) since they change more often during POS operations
+- `refetchOnWindowFocus: false` — POS is always open, no need to refetch on focus
+
+### Mutations (`useMutation`)
+
+- One mutation hook per operation: `useCheckout()`, `useCreateProduct()`, `useStockEdit()`, etc.
+- All mutation hooks live in `src/app/_lib/query/mutations/`
+- **Every mutation follows the optimistic update pattern:**
+  1. `onMutate`: Cancel in-flight queries, snapshot previous data, optimistically update cache, show `toast.loading()`
+  2. `onError`: Rollback cache to snapshot, show `toast.error()`, call `onRollback?.()` to re-open modals
+  3. `onSuccess`: Show `toast.success()`, call `onSuccess?.()` to close modals
+  4. `onSettled`: `invalidateQueries()` to sync with server truth
+- Mutation hooks accept `onSuccess` and `onRollback` callbacks for modal lifecycle management
+
+### Optimistic Patterns
+
+| Pattern | Used For | How |
+|---|---|---|
+| **Insert** | Create product, create cashier, create expense, checkout | Push to cache list with temp ID (`temp-${Date.now()}`), replaced on `onSettled` invalidation |
+| **Update** | Edit product, edit cashier, stock edit | Map-replace in cache list, also touch `byId` cache |
+| **Delete** | Soft-delete product, deactivate cashier | Filter out from cache list |
+| **Stock decrement** | Checkout, manual stock edit | Decrement `stock` field in product variant cache immediately |
+
+### Button Loading States
+
+- Every mutation button uses the pattern: `disabled={mutation.isPending}` + `<Spinner />` while pending
+- Text changes from action label → "Processing..." / "Saving..." while pending
+- Import `Spinner` from `@/app/_lib/query/Spinner`
+
+### Modal + Optimistic Flow
+
+- Modal closes on `onSuccess` callback passed to mutation hook
+- Modal re-opens on `onRollback` callback if mutation fails
+- For forms: save `editingTarget` in a ref before closing so values can be restored on rollback
+
+### Offline Integration
+
+- Mutations (checkout, expense, stockEdit) try the API first
+- If network is down (`fetch` throws `TypeError` or `useOnlineStatus().status === "offline"`), the action is queued to IndexedDB via `offlineDB.pendingActions`
+- `useOnlineStatus` syncs pending actions on reconnect and calls `queryClient.invalidateQueries()` to refresh all cached data
+- Admin-side mutations (product/cashier CRUD) are online-only — no offline queue
+
+### Toasts
+
+- Sonner handles all notifications
+- Manual toast lifecycle: `toast.loading()` in `onMutate`, update with same ID in `onSuccess`/`onError`
+- Use `useRef<string | number>(0)` for toast ID tracking
+
+### File Organization
+
+```
+src/app/_lib/query/
+├── queryClient.ts          # QueryClient singleton
+├── queryKeys.ts            # Hierarchical key factory
+├── fetcher.ts              # Fetch wrapper (get/post/put/del)
+├── Spinner.tsx             # Loading spinner component
+├── queries/                # useQuery hooks
+│   ├── useDashboard.ts
+│   ├── useProducts.ts
+│   ├── useAdminProducts.ts
+│   ├── useCashiers.ts
+│   ├── useExpenses.ts
+│   ├── useReports.ts
+│   └── useStockLogs.ts
+└── mutations/              # useMutation hooks
+    ├── useCheckout.ts
+    ├── useCreateProduct.ts
+    ├── useUpdateProduct.ts
+    ├── useDeleteProduct.ts
+    ├── useCreateCashier.ts
+    ├── useUpdateCashier.ts
+    ├── useCreateExpense.ts
+    └── useStockEdit.ts
+```
 
 ---
 
@@ -228,6 +322,8 @@ If a separate backend was needed, Express is the better pick over Nest for this 
 
 **Phase 7 — Polish & Testing**
 - Toasts and confirmation modals across all actions
+- Optimistic UI with TanStack React Query (migrated from raw fetch — see Section 6.1 for conventions)
+- Button spinners and loading states on all mutation buttons
 - Test on actual tablet and store wifi
 
 ---
