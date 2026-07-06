@@ -19,7 +19,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid role for this user" }, { status: 401 });
   }
 
-  const valid = await compareCode(code, user.code);
+  const valid =
+    user.role === "admin"
+      ? await compareCode(code, user.code)
+      : user.code === code;
+
   if (!valid) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }

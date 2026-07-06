@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { hashCode } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
@@ -8,6 +7,7 @@ export async function GET() {
     select: {
       id: true,
       username: true,
+      code: true,
       stockPermission: true,
       isActive: true,
       createdAt: true,
@@ -31,10 +31,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Username already taken" }, { status: 400 });
   }
 
-  const hashedCode = await hashCode(code);
   const cashier = await prisma.user.create({
-    data: { username, code: hashedCode, role: "cashier" },
-    select: { id: true, username: true, stockPermission: true, isActive: true },
+    data: { username, code, role: "cashier" },
+    select: { id: true, username: true, code: true, stockPermission: true, isActive: true },
   });
 
   return NextResponse.json(cashier, { status: 201 });

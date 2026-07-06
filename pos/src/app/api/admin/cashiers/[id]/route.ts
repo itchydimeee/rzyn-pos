@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { hashCode } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -7,8 +6,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
 
   if (body.code) {
-    const hashedCode = await hashCode(body.code);
-    await prisma.user.update({ where: { id }, data: { code: hashedCode } });
+    await prisma.user.update({ where: { id }, data: { code: body.code } });
     return NextResponse.json({ success: true, message: "Code reset" });
   }
 

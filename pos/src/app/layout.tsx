@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "POS System",
+  title: "R-ZYN POS System",
   description: "Point of Sale System",
 };
 

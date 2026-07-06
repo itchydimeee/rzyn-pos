@@ -33,7 +33,7 @@ export default function Sidebar({ role, stockPermission }: { role: string; stock
   return (
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col print:hidden">
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-lg font-bold text-green-700">POS System</h1>
+        <h1 className="text-lg font-bold text-green-700">R-ZYN POS System</h1>
         <p className="text-xs text-gray-500 capitalize">{role}</p>
       </div>
 

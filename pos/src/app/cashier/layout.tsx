@@ -7,9 +7,9 @@ export default async function CashierLayout({ children }: { children: React.Reac
   if (!user || user.role !== "cashier") redirect("/");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar role="cashier" stockPermission={user.stockPermission} />
-      <main className="flex-1 p-6 bg-gray-50">{children}</main>
+      <main className="flex-1 overflow-y-auto p-6 bg-gray-50">{children}</main>
     </div>
   );
 }

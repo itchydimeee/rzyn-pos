@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL || "",
@@ -9,21 +8,24 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminCode = await bcrypt.hash("112312", 10);
-  const admin = await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {},
-    create: { username: "admin", code: adminCode, role: "admin", stockPermission: true },
-  });
-  console.log("Seeded admin user:", admin.username);
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminCodeHash = process.env.ADMIN_CODE_HASH;
 
-  const cashierCode = await bcrypt.hash("654321", 10);
-  const cashier = await prisma.user.upsert({
-    where: { username: "cashier1" },
-    update: {},
-    create: { username: "cashier1", code: cashierCode, role: "cashier", stockPermission: true },
-  });
-  console.log("Seeded cashier:", cashier.username);
+  if (!adminCodeHash) {
+    console.error("ADMIN_CODE_HASH is not set in .env — admin will not be seeded.");
+    process.exit(1);
+  }
+
+  const existing = await prisma.user.findUnique({ where: { username: adminUsername } });
+
+  if (existing) {
+    console.log(`Admin user "${adminUsername}" already exists, skipping.`);
+  } else {
+    await prisma.user.create({
+      data: { username: adminUsername, code: adminCodeHash, role: "admin", stockPermission: true },
+    });
+    console.log(`Created admin user: ${adminUsername}`);
+  }
 
   const products = [
     { name: "Sardinas", category: "Canned Goods", variants: [
@@ -70,20 +72,24 @@ async function main() {
   ];
 
   for (const p of products) {
-    const product = await prisma.product.upsert({
-      where: { id: "seed-" + p.name.toLowerCase().replace(/\s+/g, "-") },
-      update: { name: p.name, category: p.category },
-      create: { id: "seed-" + p.name.toLowerCase().replace(/\s+/g, "-"), name: p.name, category: p.category },
+    const seedId = "seed-" + p.name.toLowerCase().replace(/\s+/g, "-");
+    const existing = await prisma.product.findUnique({ where: { id: seedId } });
+    if (existing) continue;
+
+    await prisma.product.create({
+      data: {
+        id: seedId,
+        name: p.name,
+        category: p.category,
+        variants: { create: p.variants },
+      },
     });
-    for (const v of p.variants) {
-      await prisma.productVariant.create({ data: { productId: product.id, ...v } });
-    }
     console.log(`  Seeded: ${p.name} (${p.variants.length} variants)`);
   }
 
   console.log("\nSeed complete!");
-  console.log("Admin login: admin / 112312");
-  console.log("Cashier login: cashier1 / 654321");
+  console.log(`Admin login: ${adminUsername}`);
+  console.log("Cashiers must be created by the Admin via the Cashiers page.");
   await prisma.$disconnect();
 }
 
