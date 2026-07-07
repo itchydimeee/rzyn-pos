@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Key, UserCheck, UserX, Eye, EyeOff, Shield, ShieldOff, Loader2 } from "lucide-react";
+import { Plus, Key, UserCheck, UserX, Eye, EyeOff, Shield, ShieldOff } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useCashiers, type Cashier } from "@/app/_lib/query/queries/useCashiers";
@@ -16,6 +16,8 @@ export default function AdminCashiersPage() {
   const [resetTarget, setResetTarget] = useState<{ id: string; username: string } | null>(null);
   const [resetCode, setResetCode] = useState("");
   const [visibleCodes, setVisibleCodes] = useState<Set<string>>(new Set());
+  const [showAddCode, setShowAddCode] = useState(false);
+  const [showResetCode, setShowResetCode] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     type: "deactivate" | "reactivate";
     id: string;
@@ -42,7 +44,11 @@ export default function AdminCashiersPage() {
   function toggleCodeVisibility(id: string) {
     setVisibleCodes((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
@@ -89,7 +95,7 @@ export default function AdminCashiersPage() {
               <UserCheck className="w-6 h-6 text-gray-400" />
             </div>
             <p className="text-gray-500 font-medium">No cashiers yet</p>
-            <p className="text-sm text-gray-400 mt-1">Click "Add Cashier" to create one</p>
+            <p className="text-sm text-gray-400 mt-1">Click &quot;Add Cashier&quot; to create one</p>
           </div>
         </div>
       ) : (
@@ -208,7 +214,7 @@ export default function AdminCashiersPage() {
         </div>
       )}
 
-      <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Add Cashier" maxWidth="max-w-sm">
+      <Modal open={showAddModal} onClose={() => { setShowAddModal(false); setShowAddCode(false); }} title="Add Cashier" maxWidth="max-w-sm">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
@@ -223,15 +229,24 @@ export default function AdminCashiersPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">6-Digit Passcode</label>
-            <input
-              type="password"
-              value={addForm.code}
-              onChange={(e) => setAddForm({ ...addForm, code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-              maxLength={6}
-              inputMode="numeric"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg tracking-[0.3em] text-center font-mono"
-              placeholder="000000"
-            />
+            <div className="relative">
+              <input
+                type={showAddCode ? "text" : "password"}
+                value={addForm.code}
+                onChange={(e) => setAddForm({ ...addForm, code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                maxLength={6}
+                inputMode="numeric"
+                className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg tracking-[0.3em] text-center font-mono"
+                placeholder="000000"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAddCode(!showAddCode)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              >
+                {showAddCode ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             <p className="text-xs text-gray-400 mt-1.5">Cashiers will use this to log in</p>
           </div>
           <div className="pt-1">
@@ -247,23 +262,32 @@ export default function AdminCashiersPage() {
         </div>
       </Modal>
 
-      <Modal open={!!resetTarget} onClose={() => setResetTarget(null)} title="Reset Passcode" maxWidth="max-w-sm">
+      <Modal open={!!resetTarget} onClose={() => { setResetTarget(null); setShowResetCode(false); }} title="Reset Passcode" maxWidth="max-w-sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
             Set a new passcode for <strong>{resetTarget?.username}</strong>
           </p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">New 6-Digit Passcode</label>
-            <input
-              type="password"
-              value={resetCode}
-              onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              maxLength={6}
-              inputMode="numeric"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg tracking-[0.3em] text-center font-mono"
-              placeholder="000000"
-              autoFocus
-            />
+            <div className="relative">
+              <input
+                type={showResetCode ? "text" : "password"}
+                value={resetCode}
+                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                maxLength={6}
+                inputMode="numeric"
+                className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg tracking-[0.3em] text-center font-mono"
+                placeholder="000000"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetCode(!showResetCode)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              >
+                {showResetCode ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button
             onClick={handleResetCode}

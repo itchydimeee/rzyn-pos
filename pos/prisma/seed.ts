@@ -8,25 +8,6 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminUsername = process.env.ADMIN_USERNAME || "admin";
-  const adminCodeHash = process.env.ADMIN_CODE_HASH;
-
-  if (!adminCodeHash) {
-    console.error("ADMIN_CODE_HASH is not set in .env — admin will not be seeded.");
-    process.exit(1);
-  }
-
-  const existing = await prisma.user.findUnique({ where: { username: adminUsername } });
-
-  if (existing) {
-    console.log(`Admin user "${adminUsername}" already exists, skipping.`);
-  } else {
-    await prisma.user.create({
-      data: { username: adminUsername, code: adminCodeHash, role: "admin", stockPermission: true },
-    });
-    console.log(`Created admin user: ${adminUsername}`);
-  }
-
   const products = [
     { name: "Sardinas", category: "Canned Goods", variants: [
       { name: "155g", sellPrice: 25, costPrice: 20, stock: 100, lowStockThreshold: 10 },
@@ -88,7 +69,7 @@ async function main() {
   }
 
   console.log("\nSeed complete!");
-  console.log(`Admin login: ${adminUsername}`);
+  console.log("Admin authenticates via ADMIN_USERNAME / ADMIN_CODE_HASH from .env — no seed needed.");
   console.log("Cashiers must be created by the Admin via the Cashiers page.");
   await prisma.$disconnect();
 }

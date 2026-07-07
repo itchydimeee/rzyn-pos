@@ -44,16 +44,20 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "no-store, max-age=0");
     if (!token) return NextResponse.redirect(new URL("/", req.url));
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       if (pathname.startsWith("/admin") && payload.role !== "admin") {
+        res.headers.delete("Cache-Control");
         return NextResponse.redirect(new URL("/cashier", req.url));
       }
       if (pathname.startsWith("/cashier") && payload.role === "admin") {
+        res.headers.delete("Cache-Control");
         return NextResponse.redirect(new URL("/admin", req.url));
       }
-      return NextResponse.next();
+      return res;
     } catch {
       return NextResponse.redirect(new URL("/", req.url));
     }
