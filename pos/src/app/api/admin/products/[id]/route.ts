@@ -29,6 +29,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           stock: v.stock,
           lowStockThreshold: v.lowStockThreshold || 5,
           barcode: v.barcode || null,
+          wholesalePrice: v.wholesalePrice ?? null,
+          wholesaleThreshold: v.wholesaleThreshold ?? null,
         },
       });
     } else {
@@ -41,6 +43,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           stock: v.stock || 0,
           lowStockThreshold: v.lowStockThreshold || 5,
           barcode: v.barcode || null,
+          wholesalePrice: v.wholesalePrice ?? null,
+          wholesaleThreshold: v.wholesaleThreshold ?? null,
         },
       });
     }

@@ -10,6 +10,8 @@ export interface Variant {
   stock: number;
   lowStockThreshold: number;
   barcode?: string | null;
+  wholesalePrice?: number | null;
+  wholesaleThreshold?: number | null;
 }
 
 export interface Product {

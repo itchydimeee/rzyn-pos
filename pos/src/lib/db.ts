@@ -5,7 +5,7 @@ export interface CachedProduct {
   name: string;
   category: string;
   isActive: boolean;
-  variants: { id: string; name: string; sellPrice: number; costPrice: number; stock: number; lowStockThreshold: number }[];
+  variants: { id: string; name: string; sellPrice: number; costPrice: number; stock: number; lowStockThreshold: number; wholesalePrice?: number | null; wholesaleThreshold?: number | null }[];
 }
 
 export interface PendingAction {

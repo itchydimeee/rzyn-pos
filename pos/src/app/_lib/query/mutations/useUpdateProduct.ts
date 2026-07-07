@@ -13,6 +13,8 @@ interface VariantInput {
   stock: number;
   lowStockThreshold: number;
   barcode?: string;
+  wholesalePrice?: number | null;
+  wholesaleThreshold?: number | null;
 }
 
 interface UpdateProductVars {
@@ -51,6 +53,8 @@ export function useUpdateProduct(onSuccess?: () => void, onRollback?: () => void
           stock: v.stock,
           lowStockThreshold: v.lowStockThreshold,
           barcode: v.barcode || null,
+          wholesalePrice: v.wholesalePrice ?? null,
+          wholesaleThreshold: v.wholesaleThreshold ?? null,
         })),
       };
 

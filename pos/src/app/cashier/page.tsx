@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { VariantPickerModal } from "@/components/VariantPickerModal";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatCurrency } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -17,6 +18,10 @@ interface CartItem {
   variantName: string;
   price: number;
   quantity: number;
+  appliedPrice: number;
+  wholesalePrice: number | null;
+  wholesaleThreshold: number | null;
+  wholesaleActive: boolean;
 }
 
 export default function CashierPOSPage() {
@@ -54,22 +59,47 @@ export default function CashierPOSPage() {
     if (!product) return;
     if (product.variants.length === 1) {
       const v = product.variants[0];
-      addToCart({ id: v.id, name: v.name, sellPrice: v.sellPrice }, product.name);
+      addToCart(v, product.name);
     } else {
       setSelectedProduct(productId);
       setShowVariantPicker(true);
     }
   }
 
-  function addToCart(variant: { id: string; name: string; sellPrice: number }, productName: string) {
+  function computeAppliedPrice(
+    price: number,
+    qty: number,
+    wholesalePrice: number | null | undefined,
+    wholesaleThreshold: number | null | undefined,
+  ) {
+    if (wholesalePrice != null && wholesaleThreshold != null && qty >= wholesaleThreshold) {
+      return { appliedPrice: wholesalePrice, wholesaleActive: true };
+    }
+    return { appliedPrice: price, wholesaleActive: false };
+  }
+
+  function addToCart(
+    variant: { id: string; name: string; sellPrice: number; wholesalePrice?: number | null; wholesaleThreshold?: number | null },
+    productName: string,
+    quantity: number = 1,
+  ) {
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === variant.id);
       if (existing) {
+        const newQty = existing.quantity + quantity;
+        const { appliedPrice, wholesaleActive } = computeAppliedPrice(variant.sellPrice, newQty, variant.wholesalePrice, variant.wholesaleThreshold);
         return prev.map((i) =>
-          i.variantId === variant.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.variantId === variant.id ? { ...i, quantity: newQty, appliedPrice, wholesaleActive } : i
         );
       }
-      return [...prev, { variantId: variant.id, productName, variantName: variant.name, price: variant.sellPrice, quantity: 1 }];
+      const { appliedPrice, wholesaleActive } = computeAppliedPrice(variant.sellPrice, quantity, variant.wholesalePrice, variant.wholesaleThreshold);
+      return [...prev, {
+        variantId: variant.id, productName, variantName: variant.name,
+        price: variant.sellPrice, quantity,
+        appliedPrice, wholesaleActive,
+        wholesalePrice: variant.wholesalePrice ?? null,
+        wholesaleThreshold: variant.wholesaleThreshold ?? null,
+      }];
     });
     setShowVariantPicker(false);
     setSelectedProduct(null);
@@ -78,7 +108,12 @@ export default function CashierPOSPage() {
   function updateQuantity(variantId: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((i) => (i.variantId === variantId ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i))
+        .map((i) => {
+          if (i.variantId !== variantId) return i;
+          const newQty = Math.max(0, i.quantity + delta);
+          const { appliedPrice, wholesaleActive } = computeAppliedPrice(i.price, newQty, i.wholesalePrice, i.wholesaleThreshold);
+          return { ...i, quantity: newQty, appliedPrice, wholesaleActive };
+        })
         .filter((i) => i.quantity > 0)
     );
   }
@@ -87,7 +122,7 @@ export default function CashierPOSPage() {
     setCart((prev) => prev.filter((i) => i.variantId !== variantId));
   }
 
-  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = cart.reduce((s, i) => s + i.appliedPrice * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   function handleCheckout() {
@@ -165,11 +200,23 @@ export default function CashierPOSPage() {
                 <div key={item.variantId} className="flex items-center gap-2 text-sm">
                   <div className="flex-1">
                     <div className="font-medium line-clamp-1">{item.productName}</div>
-                    <div className="text-gray-400 text-xs">{item.variantName} × {formatCurrency(item.price)}</div>
+                    <div className="text-gray-400 text-xs">
+                      {item.variantName}
+                      {item.wholesaleActive ? (
+                        <span>
+                          {" "}×{" "}
+                          <span className="line-through text-gray-400">{formatCurrency(item.price)}</span>
+                          {" "}
+                          <span className="text-amber-600 font-medium">{formatCurrency(item.appliedPrice)}</span>
+                        </span>
+                      ) : (
+                        <span> × {formatCurrency(item.price)}</span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => updateQuantity(item.variantId, -1)} className="p-0.5 rounded hover:bg-gray-100"><Minus className="w-3 h-3" /></button>
-                    <span className="w-6 text-center font-medium">{item.quantity}</span>
+                    <span className={`w-6 text-center font-medium ${item.wholesaleActive ? "text-amber-600" : ""}`}>{item.quantity}</span>
                     <button onClick={() => updateQuantity(item.variantId, 1)} className="p-0.5 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
                   </div>
                   <button onClick={() => removeItem(item.variantId)} className="p-0.5 text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
@@ -214,26 +261,25 @@ export default function CashierPOSPage() {
           )}
         </div>
 
-        {showVariantPicker && selected && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/50" onClick={() => { setShowVariantPicker(false); setSelectedProduct(null); }} />
-            <div className="relative bg-white rounded-xl shadow-lg w-80 p-6">
-              <h3 className="font-semibold mb-4">{selected.name} - Select Variant</h3>
-              <div className="space-y-2">
-                {selected.variants.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => addToCart(v, selected.name)}
-                    className="w-full text-left px-4 py-3 border rounded-lg hover:border-green-300 hover:bg-green-50 flex justify-between"
-                  >
-                    <span>{v.name}</span>
-                    <span className="font-bold text-green-600">{formatCurrency(v.sellPrice)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        <VariantPickerModal
+          open={showVariantPicker && !!selected}
+          onClose={() => {
+            setShowVariantPicker(false);
+            setSelectedProduct(null);
+          }}
+          product={
+            selected
+              ? { name: selected.name, variants: selected.variants }
+              : { name: "", variants: [] }
+          }
+          onAddToCart={(variant, quantity) => {
+            addToCart(
+              { id: variant.id, name: variant.name, sellPrice: variant.sellPrice, wholesalePrice: variant.wholesalePrice, wholesaleThreshold: variant.wholesaleThreshold },
+              selected!.name,
+              quantity,
+            );
+          }}
+        />
 
         <ConfirmModal
           open={showCheckoutConfirm}

@@ -17,13 +17,15 @@ export async function POST(req: NextRequest) {
       name,
       category: category || "",
       variants: {
-        create: variants.map((v: { name: string; sellPrice: number; costPrice: number; stock: number; lowStockThreshold: number; barcode?: string }) => ({
+        create: variants.map((v: { name: string; sellPrice: number; costPrice: number; stock: number; lowStockThreshold: number; barcode?: string; wholesalePrice?: number | null; wholesaleThreshold?: number | null }) => ({
           name: v.name,
           sellPrice: v.sellPrice,
           costPrice: v.costPrice,
           stock: v.stock || 0,
           lowStockThreshold: v.lowStockThreshold || 5,
           barcode: v.barcode || null,
+          wholesalePrice: v.wholesalePrice ?? null,
+          wholesaleThreshold: v.wholesaleThreshold ?? null,
         })),
       },
     },

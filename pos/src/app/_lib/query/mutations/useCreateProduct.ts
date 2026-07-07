@@ -12,6 +12,8 @@ interface VariantInput {
   stock: number;
   lowStockThreshold: number;
   barcode?: string;
+  wholesalePrice?: number | null;
+  wholesaleThreshold?: number | null;
 }
 
 interface CreateProductInput {
@@ -39,7 +41,7 @@ export function useCreateProduct(onSuccess?: () => void, onRollback?: () => void
           ...newProduct,
           id: `temp-${Date.now()}`,
           isActive: true,
-          variants: newProduct.variants.map((v, i) => ({ ...v, id: `temp-v-${i}` })),
+          variants: newProduct.variants.map((v, i) => ({ ...v, id: `temp-v-${i}`, barcode: v.barcode || null, wholesalePrice: v.wholesalePrice ?? null, wholesaleThreshold: v.wholesaleThreshold ?? null })),
         } as unknown as Product];
       });
 

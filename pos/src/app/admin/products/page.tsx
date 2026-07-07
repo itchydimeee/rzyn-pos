@@ -19,9 +19,11 @@ interface FormVariant {
   stock: number;
   lowStockThreshold: number;
   barcode: string;
+  wholesalePrice: number | null;
+  wholesaleThreshold: number | null;
 }
 
-const emptyForm = { name: "", category: "", variants: [{ name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "" }] };
+const emptyForm = { name: "", category: "", variants: [{ name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "", wholesalePrice: null as number | null, wholesaleThreshold: null as number | null }] };
 
 export default function AdminProductsPage() {
   const { data: products = [], isLoading } = useAdminProducts();
@@ -67,16 +69,18 @@ export default function AdminProductsPage() {
         stock: v.stock,
         lowStockThreshold: v.lowStockThreshold,
         barcode: v.barcode || "",
+        wholesalePrice: v.wholesalePrice ?? null,
+        wholesaleThreshold: v.wholesaleThreshold ?? null,
       })),
     });
     setShowModal(true);
   }
 
   function addVariant() {
-    setForm({ ...form, variants: [...form.variants, { name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "" }] });
+    setForm({ ...form, variants: [...form.variants, { name: "", sellPrice: 0, costPrice: 0, stock: 0, lowStockThreshold: 5, barcode: "", wholesalePrice: null, wholesaleThreshold: null }] });
   }
 
-  function updateVariant(idx: number, field: string, value: string | number) {
+  function updateVariant(idx: number, field: string, value: string | number | null) {
     const v = [...form.variants];
     (v[idx] as Record<string, unknown>)[field] = value;
     setForm({ ...form, variants: v });
@@ -136,6 +140,7 @@ export default function AdminProductsPage() {
                         <th className="py-1 font-medium">Cost</th>
                         <th className="py-1 font-medium">Stock</th>
                         <th className="py-1 font-medium">Low Stock</th>
+                        <th className="py-1 font-medium">Wholesale</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -146,6 +151,11 @@ export default function AdminProductsPage() {
                           <td className="py-1">{formatCurrency(v.costPrice)}</td>
                           <td className="py-1">{v.stock}</td>
                           <td className="py-1">{v.lowStockThreshold}</td>
+                          <td className="py-1">
+                            {v.wholesalePrice != null && v.wholesaleThreshold != null
+                              ? `${formatCurrency(v.wholesalePrice)} / ≥${v.wholesaleThreshold}`
+                              : "—"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -176,31 +186,43 @@ export default function AdminProductsPage() {
               <button onClick={addVariant} className="text-sm text-green-600 hover:underline">+ Add Variant</button>
             </div>
             {form.variants.map((v, idx) => (
-              <div key={idx} className="grid grid-cols-6 gap-2 mb-2 items-end p-3 bg-gray-50 rounded-lg">
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500">Name</label>
-                  <input type="text" value={v.name} onChange={(e) => updateVariant(idx, "name", e.target.value)} className="w-full px-2 py-1 border rounded text-sm" placeholder="e.g. 500g" />
+              <div key={idx} className="p-3 bg-gray-50 rounded-lg mb-2">
+                <div className="grid grid-cols-6 gap-2 items-end mb-1">
+                  <div className="col-span-1">
+                    <label className="text-xs text-gray-500">Name</label>
+                    <input type="text" value={v.name} onChange={(e) => updateVariant(idx, "name", e.target.value)} className="w-full px-2 py-1 border rounded text-sm" placeholder="e.g. 500g" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-xs text-gray-500">Sell Price</label>
+                    <input type="number" value={v.sellPrice || ""} onChange={(e) => updateVariant(idx, "sellPrice", parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-xs text-gray-500">Cost</label>
+                    <input type="number" value={v.costPrice || ""} onChange={(e) => updateVariant(idx, "costPrice", parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-xs text-gray-500">Stock</label>
+                    <input type="number" value={v.stock || ""} onChange={(e) => updateVariant(idx, "stock", parseInt(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-xs text-gray-500">Low Stock</label>
+                    <input type="number" value={v.lowStockThreshold || ""} onChange={(e) => updateVariant(idx, "lowStockThreshold", parseInt(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
+                  </div>
+                  <div className="col-span-1 flex items-end h-full pb-1">
+                    {form.variants.length > 1 && (
+                      <button onClick={() => removeVariant(idx)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                    )}
+                  </div>
                 </div>
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500">Sell Price</label>
-                  <input type="number" value={v.sellPrice || ""} onChange={(e) => updateVariant(idx, "sellPrice", parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
-                </div>
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500">Cost</label>
-                  <input type="number" value={v.costPrice || ""} onChange={(e) => updateVariant(idx, "costPrice", parseFloat(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
-                </div>
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500">Stock</label>
-                  <input type="number" value={v.stock || ""} onChange={(e) => updateVariant(idx, "stock", parseInt(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
-                </div>
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500">Low Stock</label>
-                  <input type="number" value={v.lowStockThreshold || ""} onChange={(e) => updateVariant(idx, "lowStockThreshold", parseInt(e.target.value) || 0)} className="w-full px-2 py-1 border rounded text-sm" />
-                </div>
-                <div className="col-span-1 flex items-end h-full pb-1">
-                  {form.variants.length > 1 && (
-                    <button onClick={() => removeVariant(idx)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
-                  )}
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-200">
+                  <div>
+                    <label className="text-xs text-gray-500">Wholesale Price</label>
+                    <input type="number" value={v.wholesalePrice ?? ""} onChange={(e) => updateVariant(idx, "wholesalePrice", e.target.value === "" ? null : parseFloat(e.target.value))} className="w-full px-2 py-1 border rounded text-sm" placeholder="Optional" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Wholesale Min. Qty</label>
+                    <input type="number" value={v.wholesaleThreshold ?? ""} onChange={(e) => updateVariant(idx, "wholesaleThreshold", e.target.value === "" ? null : parseInt(e.target.value))} className="w-full px-2 py-1 border rounded text-sm" placeholder="Optional" />
+                  </div>
                 </div>
               </div>
             ))}

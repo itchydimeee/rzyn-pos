@@ -18,9 +18,12 @@ export async function POST(req: NextRequest) {
     if (variant.stock < item.quantity) {
       return NextResponse.json({ error: `Insufficient stock for ${variant.name}` }, { status: 400 });
     }
-    const lineTotal = variant.sellPrice * item.quantity;
+    const price = variant.wholesalePrice != null && variant.wholesaleThreshold != null && item.quantity >= variant.wholesaleThreshold
+      ? variant.wholesalePrice
+      : variant.sellPrice;
+    const lineTotal = price * item.quantity;
     total += lineTotal;
-    transactionItems.push({ variantId: variant.id, quantity: item.quantity, priceAtSale: variant.sellPrice });
+    transactionItems.push({ variantId: variant.id, quantity: item.quantity, priceAtSale: price });
   }
 
   const transaction = await prisma.transaction.create({
