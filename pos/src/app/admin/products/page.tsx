@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Download, Upload } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { formatCurrency } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { useAdminProducts, type Product, type Variant } from "@/app/_lib/query/q
 import { useCreateProduct } from "@/app/_lib/query/mutations/useCreateProduct";
 import { useUpdateProduct } from "@/app/_lib/query/mutations/useUpdateProduct";
 import { useDeleteProduct } from "@/app/_lib/query/mutations/useDeleteProduct";
+import { useBulkCreateProducts } from "@/app/_lib/query/mutations/useBulkCreateProducts";
 import { Spinner } from "@/app/_lib/query/Spinner";
 
 interface FormVariant {
@@ -47,6 +48,10 @@ export default function AdminProductsPage() {
   const deleteProduct = useDeleteProduct(
     () => setDeleteTarget(null),
   );
+
+  const bulkCreate = useBulkCreateProducts();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function openAdd() {
     setEditingProduct(null);
@@ -98,15 +103,63 @@ export default function AdminProductsPage() {
     }
   }
 
+  async function handleDownloadTemplate() {
+    const res = await fetch("/api/admin/products/template");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "product-upload-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      bulkCreate.mutate(file);
+    }
+    if (e.target) e.target.value = "";
+  }
+
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Products</h2>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-          <Plus className="w-4 h-4" /> Add Product
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownloadTemplate}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100"
+          >
+            <Download className="w-4 h-4" /> Template
+          </button>
+          <button
+            onClick={handleUploadClick}
+            disabled={bulkCreate.isPending}
+            className="flex items-center gap-2 border border-green-600 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+          >
+            {bulkCreate.isPending ? <Spinner /> : <Upload className="w-4 h-4" />}
+            Upload CSV
+          </button>
+          <button onClick={openAdd} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+            <Plus className="w-4 h-4" /> Add Product
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border">
