@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const expenses = await prisma.expense.findMany({
     where: { createdAt: { gte: todayStart, lte: todayEnd } },
     include: {
-      expenseDelivery: {
+      expenseDeliveries: {
         include: { variant: { include: { product: { select: { name: true } } } } },
       },
       cashier: { select: { username: true } },
@@ -23,38 +23,98 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id") || "";
-  const { type, amount, note, deliveryVariantId, deliveryQuantity } = await req.json();
+  const { name, type, amount, note, deliveryItems } = await req.json();
 
-  let expenseData: Record<string, unknown> = {
-    type,
-    amount: parseFloat(amount) || 0,
-    note: note || "",
-    cashierId: userId,
-  };
+  const expense = await prisma.expense.create({
+    data: {
+      name: name || "",
+      type,
+      amount: parseFloat(amount) || 0,
+      note: note || "",
+      cashierId: userId,
+    },
+  });
 
-  const expense = await prisma.expense.create({ data: expenseData as never });
+  if (type === "delivery" && Array.isArray(deliveryItems) && deliveryItems.length > 0) {
+    for (const item of deliveryItems) {
+      const quantity = parseInt(String(item.quantity)) || 0;
+      if (quantity <= 0) continue;
 
-  if (type === "delivery" && deliveryVariantId && deliveryQuantity > 0) {
-    await prisma.expenseDelivery.create({
-      data: {
-        expenseId: expense.id,
-        variantId: deliveryVariantId,
-        quantityDelivered: deliveryQuantity,
-      },
-    });
-    await prisma.productVariant.update({
-      where: { id: deliveryVariantId },
-      data: { stock: { increment: deliveryQuantity } },
-    });
-    await prisma.stockLog.create({
-      data: {
-        variantId: deliveryVariantId,
-        userId,
-        changeAmount: deliveryQuantity,
-        reason: `Delivery: ${note || ""}`,
-      },
-    });
+      let variantId = item.variantId || "";
+
+      if (!variantId) {
+        const productName = (item.productName || "").trim();
+        const variantName = (item.variantName || "").trim();
+        const costPrice = parseFloat(item.costPrice) || 0;
+        const sellPrice = parseFloat(item.sellPrice) || 0;
+
+        if (!productName || !variantName) continue;
+
+        let product = await prisma.product.findFirst({
+          where: { name: { equals: productName, mode: "insensitive" } },
+        });
+
+        if (!product) {
+          product = await prisma.product.create({
+            data: { name: productName, category: "" },
+          });
+        }
+
+        const variant = await prisma.productVariant.create({
+          data: {
+            productId: product.id,
+            name: variantName,
+            sellPrice,
+            costPrice,
+            stock: quantity,
+          },
+        });
+
+        variantId = variant.id;
+
+        await prisma.stockLog.create({
+          data: {
+            variantId: variant.id,
+            userId,
+            changeAmount: quantity,
+            reason: `Initial delivery: ${quantity} units`,
+          },
+        });
+      } else {
+        await prisma.productVariant.update({
+          where: { id: variantId },
+          data: { stock: { increment: quantity } },
+        });
+
+        await prisma.stockLog.create({
+          data: {
+            variantId,
+            userId,
+            changeAmount: quantity,
+            reason: `Delivery: ${note || ""}`,
+          },
+        });
+      }
+
+      await prisma.expenseDelivery.create({
+        data: {
+          expenseId: expense.id,
+          variantId,
+          quantityDelivered: quantity,
+        },
+      });
+    }
   }
 
-  return NextResponse.json(expense, { status: 201 });
+  const result = await prisma.expense.findUnique({
+    where: { id: expense.id },
+    include: {
+      expenseDeliveries: {
+        include: { variant: { include: { product: { select: { name: true } } } } },
+      },
+      cashier: { select: { username: true } },
+    },
+  });
+
+  return NextResponse.json(result, { status: 201 });
 }

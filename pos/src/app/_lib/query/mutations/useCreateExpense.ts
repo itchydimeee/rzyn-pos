@@ -6,14 +6,23 @@ import { toast } from "sonner";
 import { queryKeys } from "../queryKeys";
 import { offlineDB } from "@/lib/db";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import type { ExpenseItem } from "../queries/useExpenses";
+import type { ExpenseItem, ExpenseDeliveryItem } from "../queries/useExpenses";
+
+interface DeliveryItem {
+  variantId?: string;
+  quantity: number;
+  productName?: string;
+  variantName?: string;
+  costPrice?: number;
+  sellPrice?: number;
+}
 
 interface ExpensePayload {
+  name: string;
   type: string;
   amount: number;
   note: string;
-  deliveryVariantId?: string;
-  deliveryQuantity?: number;
+  deliveryItems?: DeliveryItem[];
 }
 
 export function useCreateExpense(onSuccess?: () => void, onRollback?: () => void) {
@@ -51,28 +60,40 @@ export function useCreateExpense(onSuccess?: () => void, onRollback?: () => void
 
       const previous = queryClient.getQueryData<ExpenseItem[]>(queryKeys.expenses.all);
 
+      const optimisticDeliveries: ExpenseDeliveryItem[] =
+        newExpense.type === "delivery" && newExpense.deliveryItems
+          ? newExpense.deliveryItems.map((item) => ({
+              quantityDelivered: item.quantity,
+              variant: {
+                name: item.variantName || "New Item",
+                product: { name: item.productName || "New Product" },
+              },
+            }))
+          : [];
+
       queryClient.setQueryData<ExpenseItem[]>(queryKeys.expenses.all, (old) => {
         const optimistic: ExpenseItem = {
           id: `temp-${Date.now()}`,
+          name: newExpense.name,
           type: newExpense.type,
           amount: newExpense.amount,
           note: newExpense.note,
           createdAt: new Date().toISOString(),
           cashier: { username: "" },
+          expenseDeliveries: optimisticDeliveries,
         };
         return old ? [optimistic, ...old] : [optimistic];
       });
 
-      if (newExpense.type === "delivery" && newExpense.deliveryVariantId && newExpense.deliveryQuantity) {
+      if (newExpense.type === "delivery" && newExpense.deliveryItems) {
         queryClient.setQueryData(queryKeys.products.all, (old: unknown) => {
           if (!old || !Array.isArray(old)) return old;
           return (old as Array<{ id: string; variants: Array<{ id: string; stock: number }> }>).map((p) => ({
             ...p,
-            variants: p.variants.map((v) =>
-              v.id === newExpense.deliveryVariantId
-                ? { ...v, stock: v.stock + (newExpense.deliveryQuantity || 0) }
-                : v
-            ),
+            variants: p.variants.map((v) => {
+              const match = newExpense.deliveryItems!.find((di) => di.variantId === v.id);
+              return match ? { ...v, stock: v.stock + match.quantity } : v;
+            }),
           }));
         });
       }

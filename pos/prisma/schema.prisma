@@ -72,6 +72,7 @@ model TransactionItem {
 
 model Expense {
   id        String   @id @default(uuid())
+  name      String   @default("")
   type      String
   amount    Float
   note      String   @default("")
@@ -79,12 +80,12 @@ model Expense {
   createdAt DateTime @default(now())
 
   cashier          User              @relation(fields: [cashierId], references: [id])
-  expenseDelivery  ExpenseDelivery?
+  expenseDeliveries ExpenseDelivery[]
 }
 
 model ExpenseDelivery {
   id               String @id @default(uuid())
-  expenseId        String @unique
+  expenseId        String
   variantId        String
   quantityDelivered Int
 
