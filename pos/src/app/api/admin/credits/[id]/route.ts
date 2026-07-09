@@ -16,7 +16,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Credit payment not found" }, { status: 404 });
   }
 
-  await prisma.creditPayment.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.creditPayment.delete({ where: { id } }),
+    prisma.transactionItem.deleteMany({ where: { transactionId: creditPayment.transactionId } }),
+    prisma.transaction.delete({ where: { id: creditPayment.transactionId } }),
+  ]);
 
   return NextResponse.json({ success: true });
 }
