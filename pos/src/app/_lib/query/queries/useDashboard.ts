@@ -9,6 +9,8 @@ interface DashboardData {
   salesChart: { date: string; total: number }[];
   topProducts: { name: string; variantName: string; totalSold: number }[];
   lowStock: { id: string; productName: string; variantName: string; stock: number; threshold: number }[];
+  outstandingCredits: number;
+  outstandingCreditsCount: number;
 }
 
 export function useDashboard() {

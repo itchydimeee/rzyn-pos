@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
 
   const transactions = await prisma.transaction.findMany({
     where: { createdAt: { gte: startDate, lte: endDate } },
-    include: { items: { include: { variant: { include: { product: true } } } } },
+    include: {
+      items: { include: { variant: { include: { product: true } } } },
+      creditPayment: { include: { customer: true } },
+    },
   });
 
   const expenses = await prisma.expense.findMany({
@@ -35,8 +38,11 @@ export async function GET(req: NextRequest) {
   let csv = "Type,Details,Quantity,Amount,Date\n";
 
   for (const t of transactions) {
+    const paymentLabel = t.paymentType === "credit" && t.creditPayment
+      ? `Credit - ${t.creditPayment.customer.name}`
+      : t.paymentType;
     for (const item of t.items) {
-      csv += `"Sale","${item.variant.product.name} - ${item.variant.name}",${item.quantity},${item.priceAtSale * item.quantity},"${new Date(t.createdAt).toLocaleString("en-PH")}"\n`;
+      csv += `"Sale (${paymentLabel})","${item.variant.product.name} - ${item.variant.name}",${item.quantity},${item.priceAtSale * item.quantity},"${new Date(t.createdAt).toLocaleString("en-PH")}"\n`;
     }
   }
 

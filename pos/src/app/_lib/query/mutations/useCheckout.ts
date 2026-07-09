@@ -14,7 +14,9 @@ interface CheckoutItem {
 
 interface CheckoutPayload {
   items: CheckoutItem[];
-  paymentType: "cash" | "gcash";
+  paymentType: "cash" | "gcash" | "credit";
+  customerName?: string;
+  customerPhone?: string;
 }
 
 interface CartItem {

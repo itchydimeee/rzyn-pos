@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, LayoutDashboard, DollarSign, Boxes } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, LayoutDashboard, DollarSign, Boxes, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 
 const adminLinks = [
@@ -9,6 +9,7 @@ const adminLinks = [
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/stocks", label: "Stocks", icon: Boxes },
   { href: "/admin/cashiers", label: "Cashiers", icon: Users },
+  { href: "/admin/credits", label: "Credits", icon: CreditCard },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
 ];
 

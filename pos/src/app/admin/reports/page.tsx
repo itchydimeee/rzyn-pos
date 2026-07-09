@@ -112,9 +112,21 @@ export default function AdminReportsPage() {
                 <span>Cash</span>
                 <span className="font-medium">{formatCurrency(data.cashSales)}</span>
               </div>
-              <div className="flex justify-between text-sm py-1">
+              <div className="flex justify-between text-sm py-1 border-b">
                 <span>GCash</span>
                 <span className="font-medium">{formatCurrency(data.gcashSales)}</span>
+              </div>
+              <div className="flex justify-between text-sm py-1 border-b">
+                <span>Credit Sales</span>
+                <span className="font-medium">{formatCurrency(data.creditSales)}</span>
+              </div>
+              <div className="flex justify-between text-sm py-1 border-b">
+                <span>Credit Resolved</span>
+                <span className="font-medium text-green-600">{formatCurrency(data.creditResolved)}</span>
+              </div>
+              <div className="flex justify-between text-sm py-1">
+                <span>Outstanding Credits</span>
+                <span className="font-medium text-amber-600">{formatCurrency(data.creditOutstanding)}</span>
               </div>
             </div>
           </div>

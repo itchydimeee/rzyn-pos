@@ -37,6 +37,19 @@ export async function GET() {
   });
   const todayExpenseTotal = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
 
+  const pendingCredits = await prisma.creditPayment.findMany({
+    where: { status: "pending" },
+    include: { transaction: true },
+  });
+
+  const outstandingCredits = pendingCredits.reduce((sum, cp) => {
+    const createdAt = new Date(cp.createdAt).getTime();
+    const daysSinceCreation = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+    const weeksOverdue = Math.max(0, Math.floor((daysSinceCreation - 7) / 7));
+    return sum + cp.transaction.total * Math.pow(1.03, weeksOverdue);
+  }, 0);
+  const outstandingCreditsCount = pendingCredits.length;
+
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -111,5 +124,7 @@ export async function GET() {
     salesChart,
     topProducts,
     lowStock,
+    outstandingCredits: Math.round(outstandingCredits * 100) / 100,
+    outstandingCreditsCount,
   });
 }

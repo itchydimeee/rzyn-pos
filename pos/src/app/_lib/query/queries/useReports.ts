@@ -9,6 +9,9 @@ interface ReportData {
   expenseByType: Record<string, number>;
   cashSales: number;
   gcashSales: number;
+  creditSales: number;
+  creditResolved: number;
+  creditOutstanding: number;
   transactionCount: number;
 }
 

@@ -31,4 +31,8 @@ export const queryKeys = {
   transactions: {
     all: ["transactions"] as const,
   },
+  credits: {
+    all: ["credits"] as const,
+    byStatus: (status?: string) => ["credits", status ?? "all"] as const,
+  },
 } as const;

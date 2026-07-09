@@ -2,7 +2,7 @@
 
 import { formatCurrency } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CreditCard } from "lucide-react";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { useProductCache } from "@/hooks/useProductCache";
 import { useDashboard } from "@/app/_lib/query/queries/useDashboard";
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <p className="text-sm text-gray-500">Today&apos;s Sales</p>
           <p className="text-2xl font-bold text-green-600">{formatCurrency(data.todaySales)}</p>
@@ -36,6 +36,14 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <p className="text-sm text-gray-500">Today&apos;s Expenses</p>
           <p className="text-2xl font-bold text-red-600">{formatCurrency(data.todayExpenses)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-amber-500" />
+            <p className="text-sm text-gray-500">Outstanding Credits</p>
+          </div>
+          <p className="text-2xl font-bold text-amber-600">{formatCurrency(data.outstandingCredits)}</p>
+          <p className="text-xs text-gray-400">{data.outstandingCreditsCount} credit{data.outstandingCreditsCount !== 1 ? "s" : ""}</p>
         </div>
       </div>
 

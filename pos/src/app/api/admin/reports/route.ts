@@ -56,6 +56,29 @@ export async function GET(req: NextRequest) {
   const cashSales = transactions.filter((t) => t.paymentType === "cash").reduce((s, t) => s + t.total, 0);
   const gcashSales = transactions.filter((t) => t.paymentType === "gcash").reduce((s, t) => s + t.total, 0);
 
+  const creditTransactions = transactions.filter((t) => t.paymentType === "credit");
+  const creditSales = creditTransactions.reduce((s, t) => s + t.total, 0);
+
+  const resolvedCredits = await prisma.creditPayment.findMany({
+    where: {
+      status: "resolved",
+      resolvedAt: { gte: startDate, lte: endDate },
+    },
+    include: { transaction: true },
+  });
+  const creditResolved = resolvedCredits.reduce((s, cp) => s + cp.transaction.total, 0);
+
+  const allPendingCredits = await prisma.creditPayment.findMany({
+    where: { status: "pending" },
+    include: { transaction: true },
+  });
+  const creditOutstanding = allPendingCredits.reduce((sum, cp) => {
+    const createdAt = new Date(cp.createdAt).getTime();
+    const daysSinceCreation = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+    const weeksOverdue = Math.max(0, Math.floor((daysSinceCreation - 7) / 7));
+    return sum + cp.transaction.total * Math.pow(1.03, weeksOverdue);
+  }, 0);
+
   return NextResponse.json({
     filter,
     startDate: startDate.toISOString(),
@@ -66,6 +89,9 @@ export async function GET(req: NextRequest) {
     expenseByType,
     cashSales,
     gcashSales,
+    creditSales: Math.round(creditSales * 100) / 100,
+    creditResolved: Math.round(creditResolved * 100) / 100,
+    creditOutstanding: Math.round(creditOutstanding * 100) / 100,
     transactionCount: transactions.length,
   });
 }

@@ -32,7 +32,9 @@ export default function CashierPOSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [showVariantPicker, setShowVariantPicker] = useState(false);
-  const [paymentType, setPaymentType] = useState<"cash" | "gcash">("cash");
+  const [paymentType, setPaymentType] = useState<"cash" | "gcash" | "credit">("cash");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
 
   const checkout = useCheckout(
@@ -126,10 +128,14 @@ export default function CashierPOSPage() {
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   function handleCheckout() {
-    const payload = {
+    const payload: any = {
       items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
       paymentType,
     };
+    if (paymentType === "credit") {
+      payload.customerName = customerName;
+      if (customerPhone) payload.customerPhone = customerPhone;
+    }
     checkout.mutate(payload);
   }
 
@@ -248,14 +254,46 @@ export default function CashierPOSPage() {
                 >
                   GCash
                 </button>
+                <button
+                  onClick={() => setPaymentType("credit")}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border ${
+                    paymentType === "credit" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500"
+                  }`}
+                >
+                  Credit
+                </button>
               </div>
+              {paymentType === "credit" && (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Customer name *"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="Phone (optional)"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+              )}
               <button
                 onClick={() => setShowCheckoutConfirm(true)}
-                disabled={isPending}
+                disabled={isPending || (paymentType === "credit" && !customerName.trim())}
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isPending && <Spinner />}
-                {isPending ? "Processing..." : status === "offline" ? `Queue - ${formatCurrency(total)}` : `Checkout - ${formatCurrency(total)}`}
+                {isPending
+                  ? "Processing..."
+                  : status === "offline"
+                  ? `Queue - ${formatCurrency(total)}`
+                  : paymentType === "credit"
+                  ? `Process Credit - ${formatCurrency(total)}`
+                  : `Checkout - ${formatCurrency(total)}`}
               </button>
             </div>
           )}
@@ -286,8 +324,8 @@ export default function CashierPOSPage() {
           onClose={() => setShowCheckoutConfirm(false)}
           onConfirm={handleCheckout}
           title={status === "offline" ? "Queue Offline Order" : "Confirm Checkout"}
-          message={`Total: ${formatCurrency(total)} | Payment: ${paymentType.toUpperCase()}. ${status === "offline" ? "This will sync automatically when you're back online." : "Are you sure?"}`}
-          confirmLabel={status === "offline" ? "Queue Sale" : "Complete Sale"}
+          message={`Total: ${formatCurrency(total)} | Payment: ${paymentType.toUpperCase()}${paymentType === "credit" ? ` | Customer: ${customerName}` : ""}. ${status === "offline" ? "This will sync automatically when you're back online." : "Are you sure?"}`}
+          confirmLabel={status === "offline" ? "Queue Sale" : paymentType === "credit" ? "Process Credit" : "Complete Sale"}
         />
       </div>
     </>

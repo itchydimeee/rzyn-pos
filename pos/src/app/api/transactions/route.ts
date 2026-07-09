@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id") || "";
-  const { items, paymentType } = await req.json();
+  const { items, paymentType, customerName, customerPhone } = await req.json();
 
   if (!items || !items.length) {
     return NextResponse.json({ error: "No items" }, { status: 400 });
@@ -42,5 +42,28 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: true, transactionId: transaction.id, total });
+  let creditPaymentId: string | undefined;
+  if (paymentType === "credit" && customerName) {
+    let customer = await prisma.customer.findFirst({
+      where: { name: customerName, phone: customerPhone || null },
+    });
+    if (!customer) {
+      customer = await prisma.customer.create({
+        data: {
+          name: customerName,
+          phone: customerPhone || null,
+        },
+      });
+    }
+
+    const creditPayment = await prisma.creditPayment.create({
+      data: {
+        transactionId: transaction.id,
+        customerId: customer.id,
+      },
+    });
+    creditPaymentId = creditPayment.id;
+  }
+
+  return NextResponse.json({ success: true, transactionId: transaction.id, total, creditPaymentId });
 }
