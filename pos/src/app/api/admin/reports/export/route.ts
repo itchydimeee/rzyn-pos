@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     where: { createdAt: { gte: startDate, lte: endDate } },
     include: {
       items: { include: { variant: { include: { product: true } } } },
-      creditPayment: { include: { customer: true } },
+      creditPayment: true,
     },
   });
 
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   for (const t of transactions) {
     const paymentLabel = t.paymentType === "credit" && t.creditPayment
-      ? `Credit - ${t.creditPayment.customer.name}`
+      ? `Credit - ${t.creditPayment.customerName}`
       : t.paymentType;
     for (const item of t.items) {
       csv += `"Sale (${paymentLabel})","${item.variant.product.name} - ${item.variant.name}",${item.quantity},${item.priceAtSale * item.quantity},"${new Date(t.createdAt).toLocaleString("en-PH")}"\n`;

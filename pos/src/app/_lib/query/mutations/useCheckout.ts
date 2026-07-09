@@ -17,6 +17,7 @@ interface CheckoutPayload {
   paymentType: "cash" | "gcash" | "credit";
   customerName?: string;
   customerPhone?: string;
+  memberId?: string;
 }
 
 interface CartItem {
@@ -95,12 +96,14 @@ export function useCheckout(onSuccess?: (total: number) => void, onRollback?: ()
         ? `Sale queued — will sync when online`
         : `Sale completed`;
       toast.success(msg, { id: toastId.current });
+      if (onSuccess) onSuccess(total);
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.dashboard });
       queryClient.invalidateQueries({ queryKey: queryKeys.stocks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
     },
   });
 }

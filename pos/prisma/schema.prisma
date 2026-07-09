@@ -95,11 +95,13 @@ model ExpenseDelivery {
   variant ProductVariant  @relation(fields: [variantId], references: [id])
 }
 
-model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String?
-  createdAt DateTime @default(now())
+model Member {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String
+  points     Int      @default(0)
+  memberSince DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   creditPayments CreditPayment[]
 }
@@ -107,14 +109,16 @@ model Customer {
 model CreditPayment {
   id            String    @id @default(uuid())
   transactionId String    @unique
-  customerId    String
+  customerName  String
+  customerPhone String
+  memberId      String?
   status        String    @default("pending")
   resolvedAt    DateTime?
   resolvedById  String?
   createdAt     DateTime  @default(now())
 
   transaction Transaction @relation(fields: [transactionId], references: [id])
-  customer    Customer    @relation(fields: [customerId], references: [id])
+  member      Member?     @relation(fields: [memberId], references: [id])
   resolvedBy  User?       @relation(fields: [resolvedById], references: [id])
 }
 

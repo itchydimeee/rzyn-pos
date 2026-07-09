@@ -1,6 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const creditPayment = await prisma.creditPayment.findUnique({
+    where: { id },
+    include: { transaction: { include: { items: true } } },
+  });
+
+  if (!creditPayment) {
+    return NextResponse.json({ error: "Credit payment not found" }, { status: 404 });
+  }
+
+  await prisma.creditPayment.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,7 +48,7 @@ export async function PUT(
       resolvedById: userId,
     },
     include: {
-      customer: true,
+      member: { select: { id: true, name: true, phone: true } },
       transaction: true,
       resolvedBy: { select: { id: true, username: true } },
     },
@@ -37,7 +57,9 @@ export async function PUT(
   return NextResponse.json({
     id: updated.id,
     transactionId: updated.transactionId,
-    customer: { id: updated.customer.id, name: updated.customer.name, phone: updated.customer.phone },
+    customerName: updated.customerName,
+    customerPhone: updated.customerPhone,
+    member: updated.member ? { id: updated.member.id, name: updated.member.name, phone: updated.member.phone } : null,
     amount: updated.transaction.total,
     status: updated.status,
     resolvedAt: updated.resolvedAt?.toISOString() || null,

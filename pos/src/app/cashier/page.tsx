@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { VariantPickerModal } from "@/components/VariantPickerModal";
@@ -11,6 +11,7 @@ import { useProductCache } from "@/hooks/useProductCache";
 import { useProducts } from "@/app/_lib/query/queries/useProducts";
 import { useCheckout } from "@/app/_lib/query/mutations/useCheckout";
 import { Spinner } from "@/app/_lib/query/Spinner";
+import { PhoneInput } from "@/components/PhoneInput";
 
 interface CartItem {
   variantId: string;
@@ -34,16 +35,46 @@ export default function CashierPOSPage() {
   const [showVariantPicker, setShowVariantPicker] = useState(false);
   const [paymentType, setPaymentType] = useState<"cash" | "gcash" | "credit">("cash");
   const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("+63 ");
+  const [memberId, setMemberId] = useState<string | null>(null);
+  const [members, setMembers] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
 
   const checkout = useCheckout(
     () => {
       setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setMemberId(null);
       setShowCheckoutConfirm(false);
     },
     () => setShowCheckoutConfirm(true),
   );
+
+  useEffect(() => {
+    fetch("/api/admin/members")
+      .then((r) => r.json())
+      .then(setMembers)
+      .catch(() => {});
+  }, []);
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch) return members;
+    const q = memberSearch.toLowerCase();
+    return members.filter(
+      (m) => m.name.toLowerCase().includes(q) || (m.phone && m.phone.includes(q))
+    );
+  }, [members, memberSearch]);
+
+  function selectMember(member: { id: string; name: string; phone: string }) {
+    setMemberId(member.id);
+    setCustomerName(member.name);
+    setCustomerPhone(member.phone);
+    setMemberSearch("");
+    setShowMemberDropdown(false);
+  }
 
   const filtered = apiProducts.filter(
     (p) =>
@@ -135,6 +166,7 @@ export default function CashierPOSPage() {
     if (paymentType === "credit") {
       payload.customerName = customerName;
       if (customerPhone) payload.customerPhone = customerPhone;
+      if (memberId) payload.memberId = memberId;
     }
     checkout.mutate(payload);
   }
@@ -265,25 +297,62 @@ export default function CashierPOSPage() {
               </div>
               {paymentType === "credit" && (
                 <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Customer name *"
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
-                  <input
-                    type="text"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Phone (optional)"
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => { setMemberSearch(e.target.value); setShowMemberDropdown(true); }}
+                      onFocus={() => setShowMemberDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowMemberDropdown(false), 200)}
+                      placeholder="Search member..."
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    />
+                    {showMemberDropdown && filteredMembers.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {filteredMembers.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onMouseDown={() => selectMember(m)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-green-50 hover:text-green-700"
+                          >
+                            <div className="font-medium">{m.name}</div>
+                            {m.phone && <div className="text-xs text-gray-400">{m.phone}</div>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {memberId ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg text-sm">
+                      <span className="text-green-700 font-medium">{customerName}</span>
+                      <button
+                        onClick={() => { setMemberId(null); setCustomerName(""); setCustomerPhone("+63 "); }}
+                        className="text-xs text-red-500 hover:text-red-700 ml-auto"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Customer name *"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                      <PhoneInput
+                        value={customerPhone}
+                        onChange={setCustomerPhone}
+                      />
+                    </>
+                  )}
                 </div>
               )}
               <button
                 onClick={() => setShowCheckoutConfirm(true)}
-                disabled={isPending || (paymentType === "credit" && !customerName.trim())}
+                disabled={isPending || (paymentType === "credit" && (!customerName.trim() || customerPhone.length < 14))}
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isPending && <Spinner />}

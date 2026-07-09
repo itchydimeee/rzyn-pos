@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   const creditPayments = await prisma.creditPayment.findMany({
     where,
     include: {
-      customer: true,
       transaction: true,
+      member: { select: { id: true, name: true, phone: true } },
       resolvedBy: { select: { id: true, username: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
     return {
       id: cp.id,
       transactionId: cp.transactionId,
-      customer: { id: cp.customer.id, name: cp.customer.name, phone: cp.customer.phone },
+      customerName: cp.customerName,
+      customerPhone: cp.customerPhone,
+      member: cp.member ? { id: cp.member.id, name: cp.member.name, phone: cp.member.phone } : null,
       amount,
       status: cp.status,
       daysSinceCreation: Math.round(daysSinceCreation),

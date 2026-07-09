@@ -5,7 +5,9 @@ import { fetcher } from "../fetcher";
 export interface CreditPaymentItem {
   id: string;
   transactionId: string;
-  customer: { id: string; name: string; phone: string | null };
+  customerName: string;
+  customerPhone: string;
+  member: { id: string; name: string; phone: string } | null;
   amount: number;
   status: string;
   daysSinceCreation: number;
