@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { VariantPickerModal } from "@/components/VariantPickerModal";
+import { GcashQrModal } from "@/components/GcashQrModal";
+import { PrintReceiptModal } from "@/components/PrintReceiptModal";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatCurrency } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useProductCache } from "@/hooks/useProductCache";
 import { useProducts } from "@/app/_lib/query/queries/useProducts";
-import { useCheckout } from "@/app/_lib/query/mutations/useCheckout";
+import { useCheckout, CheckoutResponse } from "@/app/_lib/query/mutations/useCheckout";
 import { Spinner } from "@/app/_lib/query/Spinner";
 import { PhoneInput } from "@/components/PhoneInput";
+import type { ReceiptData } from "@/components/Receipt";
 
 interface CartItem {
   variantId: string;
@@ -41,14 +44,38 @@ export default function CashierPOSPage() {
   const [memberSearch, setMemberSearch] = useState("");
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
+  const [showGcashQr, setShowGcashQr] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<ReceiptData | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptAutoPrint, setReceiptAutoPrint] = useState(false);
+  const [printReceipt, setPrintReceipt] = useState(false);
+  const printReceiptRef = useRef(false);
 
   const checkout = useCheckout(
-    () => {
+    (data: CheckoutResponse) => {
       setCart([]);
       setCustomerName("");
       setCustomerPhone("");
       setMemberId(null);
       setShowCheckoutConfirm(false);
+      if (!data.offline && printReceiptRef.current) {
+        setLastTransaction({
+          orNumber: data.orNumber,
+          createdAt: data.createdAt,
+          paymentType: data.paymentType as ReceiptData["paymentType"],
+          items: data.items,
+          total: data.total,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+        });
+        if (data.paymentType === "credit") {
+          setReceiptAutoPrint(true);
+          setShowReceipt(true);
+        } else {
+          setReceiptAutoPrint(false);
+          setShowReceipt(true);
+        }
+      }
     },
     () => setShowCheckoutConfirm(true),
   );
@@ -158,6 +185,25 @@ export default function CashierPOSPage() {
   const total = cart.reduce((s, i) => s + i.appliedPrice * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
+  function openConfirmModal(shouldPrint: boolean) {
+    setPrintReceipt(shouldPrint);
+    printReceiptRef.current = shouldPrint;
+    setShowCheckoutConfirm(true);
+  }
+
+  function handleCheckoutClick() {
+    if (paymentType === "gcash") {
+      setShowGcashQr(true);
+    } else {
+      openConfirmModal(paymentType === "credit");
+    }
+  }
+
+  function handleGcashConfirm() {
+    setShowGcashQr(false);
+    openConfirmModal(paymentType === "credit");
+  }
+
   function handleCheckout() {
     const payload: any = {
       items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
@@ -175,6 +221,51 @@ export default function CashierPOSPage() {
 
   const selected = getSelectedProduct();
   const isPending = checkout.isPending;
+
+  const checkoutSummary = (
+    <div>
+      {paymentType === "gcash" && (
+        <div className="flex items-center gap-1.5 mb-3 text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          GCash payment confirmed via QR
+        </div>
+      )}
+      <div className="border rounded-lg divide-y text-sm">
+        {cart.map((item) => (
+          <div key={item.variantId} className="flex justify-between items-center px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium truncate">{item.productName} - {item.variantName}</div>
+              <div className="text-gray-400 text-xs">
+                {item.quantity} &times; {formatCurrency(item.appliedPrice)}
+                {item.wholesaleActive && <span className="text-amber-600 ml-1">(wholesale)</span>}
+              </div>
+            </div>
+            <div className="font-medium ml-3">{formatCurrency(item.appliedPrice * item.quantity)}</div>
+          </div>
+        ))}
+        <div className="flex justify-between items-center px-3 py-2.5 bg-gray-50 font-bold">
+          <span>Total</span>
+          <span className="text-green-600">{formatCurrency(total)}</span>
+        </div>
+      </div>
+      <label className="mt-3 flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={printReceipt}
+          disabled={paymentType === "credit"}
+          onChange={(e) => {
+            setPrintReceipt(e.target.checked);
+            printReceiptRef.current = e.target.checked;
+          }}
+          className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
+        />
+        <span className="text-sm text-gray-700">
+          Print Receipt
+          {paymentType === "credit" && <span className="text-gray-400 text-xs ml-1">(required for credit)</span>}
+        </span>
+      </label>
+    </div>
+  );
 
   return (
     <>
@@ -242,13 +333,13 @@ export default function CashierPOSPage() {
                       {item.variantName}
                       {item.wholesaleActive ? (
                         <span>
-                          {" "}×{" "}
+                          {" "}&times;{" "}
                           <span className="line-through text-gray-400">{formatCurrency(item.price)}</span>
                           {" "}
                           <span className="text-amber-600 font-medium">{formatCurrency(item.appliedPrice)}</span>
                         </span>
                       ) : (
-                        <span> × {formatCurrency(item.price)}</span>
+                        <span> &times; {formatCurrency(item.price)}</span>
                       )}
                     </div>
                   </div>
@@ -351,7 +442,7 @@ export default function CashierPOSPage() {
                 </div>
               )}
               <button
-                onClick={() => setShowCheckoutConfirm(true)}
+                onClick={handleCheckoutClick}
                 disabled={isPending || (paymentType === "credit" && (!customerName.trim() || customerPhone.length < 14))}
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
@@ -360,6 +451,8 @@ export default function CashierPOSPage() {
                   ? "Processing..."
                   : status === "offline"
                   ? `Queue - ${formatCurrency(total)}`
+                  : paymentType === "gcash"
+                  ? `Pay with GCash - ${formatCurrency(total)}`
                   : paymentType === "credit"
                   ? `Process Credit - ${formatCurrency(total)}`
                   : `Checkout - ${formatCurrency(total)}`}
@@ -388,13 +481,30 @@ export default function CashierPOSPage() {
           }}
         />
 
+        <GcashQrModal
+          open={showGcashQr}
+          onClose={() => setShowGcashQr(false)}
+          onConfirm={handleGcashConfirm}
+          total={total}
+        />
+
         <ConfirmModal
           open={showCheckoutConfirm}
           onClose={() => setShowCheckoutConfirm(false)}
           onConfirm={handleCheckout}
           title={status === "offline" ? "Queue Offline Order" : "Confirm Checkout"}
-          message={`Total: ${formatCurrency(total)} | Payment: ${paymentType.toUpperCase()}${paymentType === "credit" ? ` | Customer: ${customerName}` : ""}. ${status === "offline" ? "This will sync automatically when you're back online." : "Are you sure?"}`}
+          message={`Payment: ${paymentType.toUpperCase()}${paymentType === "credit" ? ` | Customer: ${customerName}` : ""}. ${status === "offline" ? "This will sync automatically when you're back online." : ""}`}
           confirmLabel={status === "offline" ? "Queue Sale" : paymentType === "credit" ? "Process Credit" : "Complete Sale"}
+          loading={isPending}
+        >
+          {checkoutSummary}
+        </ConfirmModal>
+
+        <PrintReceiptModal
+          open={showReceipt}
+          onClose={() => { setShowReceipt(false); setReceiptAutoPrint(false); }}
+          transaction={lastTransaction!}
+          autoPrint={receiptAutoPrint}
         />
       </div>
     </>

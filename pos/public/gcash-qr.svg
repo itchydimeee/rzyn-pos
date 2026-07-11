@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#fff" stroke="#ddd" stroke-width="1" rx="8"/>
+  <rect x="20" y="20" width="160" height="160" fill="none" stroke="#999" stroke-width="2" rx="4"/>
+  <rect x="30" y="30" width="140" height="140" fill="none" stroke="#999" stroke-width="2" rx="2"/>
+  <text x="100" y="95" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">GCash QR</text>
+  <text x="100" y="113" text-anchor="middle" font-family="Arial" font-size="9" fill="#999">(replace with</text>
+  <text x="100" y="127" text-anchor="middle" font-family="Arial" font-size="9" fill="#999">actual QR code)</text>
+</svg>

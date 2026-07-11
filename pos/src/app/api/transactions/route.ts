@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+
+function generateOrNumber(): string {
+  const today = new Date();
+  const datePart = today.getFullYear().toString() +
+    (today.getMonth() + 1).toString().padStart(2, "0") +
+    today.getDate().toString().padStart(2, "0");
+  const random = crypto.randomBytes(2).toString("hex").toUpperCase();
+  return `RZYN-${datePart}-${random}`;
+}
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id") || "";
@@ -26,12 +36,32 @@ export async function POST(req: NextRequest) {
     transactionItems.push({ variantId: variant.id, quantity: item.quantity, priceAtSale: price });
   }
 
+  let orNumber: string;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    orNumber = generateOrNumber();
+    const existing = await prisma.transaction.findUnique({ where: { orNumber } });
+    if (!existing) break;
+    if (attempt === 4) {
+      return NextResponse.json({ error: "Failed to generate unique OR number" }, { status: 500 });
+    }
+  }
+
   const transaction = await prisma.transaction.create({
     data: {
+      orNumber: orNumber!,
       cashierId: userId,
       total,
       paymentType,
       items: { create: transactionItems },
+    },
+    include: {
+      items: {
+        include: {
+          variant: {
+            include: { product: true },
+          },
+        },
+      },
     },
   });
 
@@ -55,5 +85,24 @@ export async function POST(req: NextRequest) {
     creditPaymentId = creditPayment.id;
   }
 
-  return NextResponse.json({ success: true, transactionId: transaction.id, total, creditPaymentId });
+  const receiptItems = transaction.items.map((ti) => ({
+    productName: ti.variant.product.name,
+    variantName: ti.variant.name,
+    quantity: ti.quantity,
+    priceAtSale: ti.priceAtSale,
+    lineTotal: ti.priceAtSale * ti.quantity,
+  }));
+
+  return NextResponse.json({
+    success: true,
+    transactionId: transaction.id,
+    orNumber: transaction.orNumber,
+    total: transaction.total,
+    createdAt: transaction.createdAt.toISOString(),
+    paymentType: transaction.paymentType,
+    items: receiptItems,
+    customerName: customerName || undefined,
+    customerPhone: customerPhone || undefined,
+    creditPaymentId,
+  });
 }

@@ -20,21 +20,35 @@ interface CheckoutPayload {
   memberId?: string;
 }
 
-interface CartItem {
-  variantId: string;
+export interface ReceiptItem {
   productName: string;
   variantName: string;
-  price: number;
   quantity: number;
+  priceAtSale: number;
+  lineTotal: number;
 }
 
-export function useCheckout(onSuccess?: (total: number) => void, onRollback?: () => void) {
+export interface CheckoutResponse {
+  success: boolean;
+  transactionId: string;
+  orNumber: string;
+  total: number;
+  createdAt: string;
+  paymentType: string;
+  items: ReceiptItem[];
+  customerName?: string;
+  customerPhone?: string;
+  creditPaymentId?: string;
+  offline?: boolean;
+}
+
+export function useCheckout(onSuccess?: (data: CheckoutResponse) => void, onRollback?: () => void) {
   const queryClient = useQueryClient();
   const toastId = useRef<string | number>(0);
   const { status: onlineStatus, refreshPending } = useOnlineStatus();
 
   return useMutation({
-    mutationFn: async (payload: CheckoutPayload) => {
+    mutationFn: async (payload: CheckoutPayload): Promise<CheckoutResponse> => {
       try {
         const res = await fetch("/api/transactions", {
           method: "POST",
@@ -54,7 +68,7 @@ export function useCheckout(onSuccess?: (total: number) => void, onRollback?: ()
             createdAt: Date.now(),
           });
           await refreshPending();
-          return { offline: true };
+          return { offline: true } as CheckoutResponse;
         }
         throw err;
       }
@@ -90,13 +104,12 @@ export function useCheckout(onSuccess?: (total: number) => void, onRollback?: ()
       toast.error((err as Error).message || "Checkout failed", { id: toastId.current });
     },
 
-    onSuccess: (data, { items, paymentType }) => {
-      const total = items.reduce((s, i) => s + i.quantity, 0);
+    onSuccess: (data) => {
       const msg = data.offline
         ? `Sale queued — will sync when online`
         : `Sale completed`;
       toast.success(msg, { id: toastId.current });
-      if (onSuccess) onSuccess(total);
+      if (onSuccess) onSuccess(data);
     },
 
     onSettled: () => {

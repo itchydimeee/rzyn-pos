@@ -51,6 +51,7 @@ model ProductVariant {
 
 model Transaction {
   id          String    @id @default(uuid())
+  orNumber    String?   @unique
   cashierId   String
   total       Float
   paymentType String
