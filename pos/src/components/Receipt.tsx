@@ -29,47 +29,47 @@ export function Receipt({ data, showControls }: { data: ReceiptData; showControl
   const paymentLabel = data.paymentType === "cash" ? "CASH" : data.paymentType === "gcash" ? "GCASH" : "CREDIT";
 
   return (
-    <div className="receipt-print-area bg-white" style={{ maxWidth: 300, margin: "0 auto", fontFamily: "monospace", fontSize: 11, lineHeight: 1.5 }}>
-      <div style={{ textAlign: "center", fontWeight: "bold", marginBottom: 4 }}>RZYN VARIETY STORE</div>
-      <div style={{ textAlign: "center", fontSize: 10, marginBottom: 2 }}>Liningwan, Maabay,</div>
-      <div style={{ textAlign: "center", fontSize: 10, marginBottom: 8 }}>Sibunag, Guimaras</div>
+    <div style={{ width: "58mm", fontFamily: "monospace", fontSize: 9, lineHeight: 1.4, padding: "4px 6px", boxSizing: "border-box", background: "white" }}>
+      <div style={{ textAlign: "center", fontWeight: "bold", fontSize: 10, marginBottom: 2 }}>RZYN VARIETY STORE</div>
+      <div style={{ textAlign: "center", fontSize: 8, marginBottom: 1 }}>Liningwan, Maabay,</div>
+      <div style={{ textAlign: "center", fontSize: 8, marginBottom: 6 }}>Sibunag, Guimaras</div>
 
-      <div style={{ marginBottom: 2 }}>OR#: {data.orNumber}</div>
-      <div style={{ marginBottom: 2 }}>Date: {formatReceiptDate(data.createdAt)}</div>
-      <div style={{ marginBottom: 8 }}>Type: {paymentLabel}</div>
+      <div style={{ fontSize: 8, marginBottom: 1 }}>OR#: {data.orNumber}</div>
+      <div style={{ fontSize: 8, marginBottom: 1 }}>Date: {formatReceiptDate(data.createdAt)}</div>
+      <div style={{ fontSize: 8, marginBottom: 4 }}>Type: {paymentLabel}</div>
 
-      <div style={{ borderTop: "1px dashed #999", marginBottom: 4 }} />
+      <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
 
       {data.items.map((item, idx) => (
-        <div key={idx} style={{ marginBottom: 4 }}>
-          <div style={{ fontWeight: "bold" }}>{item.productName} - {item.variantName}</div>
-          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 8 }}>
+        <div key={idx} style={{ marginBottom: 3, fontSize: 8 }}>
+          <div style={{ fontWeight: "bold", wordBreak: "break-word" }}>{item.productName} - {item.variantName}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 4 }}>
             <span>{item.quantity} &times; {formatCurrency(item.priceAtSale)}</span>
-            <span style={{ fontWeight: "bold" }}>{formatCurrency(item.lineTotal)}</span>
+            <span style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>{formatCurrency(item.lineTotal)}</span>
           </div>
         </div>
       ))}
 
-      <div style={{ borderTop: "1px dashed #999", margin: "8px 0" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: 13 }}>
+      <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: 10, marginBottom: 4 }}>
         <span>TOTAL:</span>
-        <span>{formatCurrency(data.total)}</span>
+        <span style={{ whiteSpace: "nowrap" }}>{formatCurrency(data.total)}</span>
       </div>
-      <div style={{ borderTop: "1px dashed #999", margin: "8px 0" }} />
+      <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
 
       {data.paymentType === "credit" && (
         <>
-          <div style={{ marginBottom: 2 }}>Customer: {data.customerName}</div>
-          {data.customerPhone && <div style={{ marginBottom: 2 }}>Phone: {data.customerPhone}</div>}
-          <div style={{ marginTop: 12, marginBottom: 4 }}>Signature: _________________</div>
-          <div style={{ borderTop: "1px dashed #999", margin: "8px 0" }} />
+          <div style={{ fontSize: 8, marginBottom: 1 }}>Customer: {data.customerName}</div>
+          {data.customerPhone && <div style={{ fontSize: 8, marginBottom: 1 }}>Phone: {data.customerPhone}</div>}
+          <div style={{ fontSize: 8, marginTop: 8, marginBottom: 2 }}>Signature: _________________</div>
+          <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
         </>
       )}
 
-      <div style={{ textAlign: "center", marginTop: 8 }}>Thank you!</div>
+      <div style={{ textAlign: "center", fontSize: 9, marginTop: 4 }}>Thank you!</div>
 
       {showControls && (
-        <div className="no-print" style={{ textAlign: "center", marginTop: 16 }}>
+        <div className="no-print" style={{ textAlign: "center", marginTop: 12 }}>
           <button
             onClick={() => window.print()}
             style={{

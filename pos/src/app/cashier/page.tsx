@@ -5,7 +5,6 @@ import { Search, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { VariantPickerModal } from "@/components/VariantPickerModal";
 import { GcashQrModal } from "@/components/GcashQrModal";
-import { PrintReceiptModal } from "@/components/PrintReceiptModal";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { formatCurrency } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -14,6 +13,7 @@ import { useProducts } from "@/app/_lib/query/queries/useProducts";
 import { useCheckout, CheckoutResponse } from "@/app/_lib/query/mutations/useCheckout";
 import { Spinner } from "@/app/_lib/query/Spinner";
 import { PhoneInput } from "@/components/PhoneInput";
+import { printReceipt } from "@/lib/printReceipt";
 import type { ReceiptData } from "@/components/Receipt";
 
 interface CartItem {
@@ -45,11 +45,8 @@ export default function CashierPOSPage() {
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
   const [showGcashQr, setShowGcashQr] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<ReceiptData | null>(null);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptAutoPrint, setReceiptAutoPrint] = useState(false);
-  const [printReceipt, setPrintReceipt] = useState(false);
-  const printReceiptRef = useRef(false);
+
+  const printModeRef = useRef(false);
 
   const checkout = useCheckout(
     (data: CheckoutResponse) => {
@@ -58,8 +55,8 @@ export default function CashierPOSPage() {
       setCustomerPhone("");
       setMemberId(null);
       setShowCheckoutConfirm(false);
-      if (!data.offline && printReceiptRef.current) {
-        setLastTransaction({
+      if (!data.offline && printModeRef.current) {
+        printReceipt({
           orNumber: data.orNumber,
           createdAt: data.createdAt,
           paymentType: data.paymentType as ReceiptData["paymentType"],
@@ -68,13 +65,6 @@ export default function CashierPOSPage() {
           customerName: data.customerName,
           customerPhone: data.customerPhone,
         });
-        if (data.paymentType === "credit") {
-          setReceiptAutoPrint(true);
-          setShowReceipt(true);
-        } else {
-          setReceiptAutoPrint(false);
-          setShowReceipt(true);
-        }
       }
     },
     () => setShowCheckoutConfirm(true),
@@ -185,26 +175,21 @@ export default function CashierPOSPage() {
   const total = cart.reduce((s, i) => s + i.appliedPrice * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-  function openConfirmModal(shouldPrint: boolean) {
-    setPrintReceipt(shouldPrint);
-    printReceiptRef.current = shouldPrint;
-    setShowCheckoutConfirm(true);
-  }
-
   function handleCheckoutClick() {
     if (paymentType === "gcash") {
       setShowGcashQr(true);
     } else {
-      openConfirmModal(paymentType === "credit");
+      setShowCheckoutConfirm(true);
     }
   }
 
   function handleGcashConfirm() {
     setShowGcashQr(false);
-    openConfirmModal(paymentType === "credit");
+    setShowCheckoutConfirm(true);
   }
 
-  function handleCheckout() {
+  function handleCheckout(shouldPrint: boolean) {
+    printModeRef.current = shouldPrint;
     const payload: any = {
       items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
       paymentType,
@@ -248,22 +233,6 @@ export default function CashierPOSPage() {
           <span className="text-green-600">{formatCurrency(total)}</span>
         </div>
       </div>
-      <label className="mt-3 flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={printReceipt}
-          disabled={paymentType === "credit"}
-          onChange={(e) => {
-            setPrintReceipt(e.target.checked);
-            printReceiptRef.current = e.target.checked;
-          }}
-          className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
-        />
-        <span className="text-sm text-gray-700">
-          Print Receipt
-          {paymentType === "credit" && <span className="text-gray-400 text-xs ml-1">(required for credit)</span>}
-        </span>
-      </label>
     </div>
   );
 
@@ -491,21 +460,17 @@ export default function CashierPOSPage() {
         <ConfirmModal
           open={showCheckoutConfirm}
           onClose={() => setShowCheckoutConfirm(false)}
-          onConfirm={handleCheckout}
+          onConfirm={() => handleCheckout(false)}
           title={status === "offline" ? "Queue Offline Order" : "Confirm Checkout"}
           message={`Payment: ${paymentType.toUpperCase()}${paymentType === "credit" ? ` | Customer: ${customerName}` : ""}. ${status === "offline" ? "This will sync automatically when you're back online." : ""}`}
-          confirmLabel={status === "offline" ? "Queue Sale" : paymentType === "credit" ? "Process Credit" : "Complete Sale"}
+          confirmLabel={status === "offline" ? "Queue Sale" : paymentType === "credit" ? "Process Credit" : "Complete"}
+          confirmSecondaryLabel={status === "offline" ? undefined : "Complete & Print"}
+          onConfirmSecondary={status === "offline" ? undefined : () => handleCheckout(true)}
           loading={isPending}
         >
           {checkoutSummary}
         </ConfirmModal>
 
-        <PrintReceiptModal
-          open={showReceipt}
-          onClose={() => { setShowReceipt(false); setReceiptAutoPrint(false); }}
-          transaction={lastTransaction!}
-          autoPrint={receiptAutoPrint}
-        />
       </div>
     </>
   );

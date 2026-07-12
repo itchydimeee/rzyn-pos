@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 
 function generateOrNumber(): string {
-  const today = new Date();
-  const datePart = today.getFullYear().toString() +
-    (today.getMonth() + 1).toString().padStart(2, "0") +
-    today.getDate().toString().padStart(2, "0");
-  const random = crypto.randomBytes(2).toString("hex").toUpperCase();
-  return `RZYN-${datePart}-${random}`;
+  let result = "";
+  for (let i = 0; i < 16; i++) {
+    result += Math.floor(Math.random() * 10).toString();
+  }
+  return result;
 }
 
 export async function POST(req: NextRequest) {

@@ -14,6 +14,8 @@ interface ConfirmModalProps {
   variant?: "default" | "danger";
   loading?: boolean;
   children?: React.ReactNode;
+  confirmSecondaryLabel?: string;
+  onConfirmSecondary?: () => void;
 }
 
 export function ConfirmModal({
@@ -26,6 +28,8 @@ export function ConfirmModal({
   variant = "default",
   loading = false,
   children,
+  confirmSecondaryLabel,
+  onConfirmSecondary,
 }: ConfirmModalProps) {
   const [submitted, setSubmitted] = useState(false);
 
@@ -38,6 +42,12 @@ export function ConfirmModal({
     setSubmitted(true);
     onConfirm();
   }, [submitted, loading, onConfirm]);
+
+  const handleSecondaryConfirm = useCallback(() => {
+    if (submitted || loading) return;
+    setSubmitted(true);
+    onConfirmSecondary?.();
+  }, [submitted, loading, onConfirmSecondary]);
 
   if (!open) return null;
 
@@ -68,6 +78,15 @@ export function ConfirmModal({
               {loading && <Spinner />}
               {loading ? (confirmLabel === "Resolve" ? "Resolving..." : confirmLabel === "Remove" ? "Removing..." : "Saving...") : confirmLabel}
             </button>
+            {confirmSecondaryLabel && onConfirmSecondary && (
+              <button
+                onClick={handleSecondaryConfirm}
+                disabled={isDisabled}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {confirmSecondaryLabel}
+              </button>
+            )}
           </div>
         </div>
       </div>
