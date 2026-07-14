@@ -15,6 +15,7 @@ interface CheckoutItem {
 interface CheckoutPayload {
   items: CheckoutItem[];
   paymentType: "cash" | "gcash" | "credit";
+  amountTendered?: number;
   customerName?: string;
   customerPhone?: string;
   memberId?: string;
@@ -33,6 +34,8 @@ export interface CheckoutResponse {
   transactionId: string;
   orNumber: string;
   total: number;
+  amountTendered?: number | null;
+  change?: number | null;
   createdAt: string;
   paymentType: string;
   items: ReceiptItem[];

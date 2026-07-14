@@ -45,6 +45,7 @@ export default function CashierPOSPage() {
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
   const [showGcashQr, setShowGcashQr] = useState(false);
+  const [amountTendered, setAmountTendered] = useState("");
 
   const printModeRef = useRef(false);
 
@@ -54,6 +55,7 @@ export default function CashierPOSPage() {
       setCustomerName("");
       setCustomerPhone("");
       setMemberId(null);
+      setAmountTendered("");
       setShowCheckoutConfirm(false);
       if (!data.offline && printModeRef.current) {
         printReceipt({
@@ -62,6 +64,8 @@ export default function CashierPOSPage() {
           paymentType: data.paymentType as ReceiptData["paymentType"],
           items: data.items,
           total: data.total,
+          amountTendered: data.amountTendered,
+          change: data.change,
           customerName: data.customerName,
           customerPhone: data.customerPhone,
         });
@@ -174,6 +178,7 @@ export default function CashierPOSPage() {
 
   const total = cart.reduce((s, i) => s + i.appliedPrice * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const parsedAmount = parseFloat(amountTendered) || 0;
 
   function handleCheckoutClick() {
     if (paymentType === "gcash") {
@@ -189,11 +194,15 @@ export default function CashierPOSPage() {
   }
 
   function handleCheckout(shouldPrint: boolean) {
+    if (paymentType !== "credit" && (parsedAmount <= 0 || parsedAmount < total)) return;
     printModeRef.current = shouldPrint;
     const payload: any = {
       items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
       paymentType,
     };
+    if (paymentType !== "credit") {
+      payload.amountTendered = parsedAmount;
+    }
     if (paymentType === "credit") {
       payload.customerName = customerName;
       if (customerPhone) payload.customerPhone = customerPhone;
@@ -233,6 +242,31 @@ export default function CashierPOSPage() {
           <span className="text-green-600">{formatCurrency(total)}</span>
         </div>
       </div>
+      {paymentType !== "credit" && (
+        <div className="mt-3 space-y-2">
+          <div>
+            <label className="text-xs text-gray-500">Amount Tendered</label>
+            <input
+              type="number"
+              value={amountTendered}
+              onChange={(e) => setAmountTendered(e.target.value)}
+              placeholder="Enter amount..."
+              className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+              min="0"
+              step="0.01"
+            />
+          </div>
+          {parsedAmount > 0 && parsedAmount >= total && (
+            <div className="flex justify-between text-sm font-bold text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+              <span>Change</span>
+              <span>{formatCurrency(parsedAmount - total)}</span>
+            </div>
+          )}
+          {parsedAmount > 0 && parsedAmount < total && (
+            <div className="text-xs text-red-500">Amount tendered must be at least {formatCurrency(total)}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 

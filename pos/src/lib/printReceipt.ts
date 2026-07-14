@@ -84,6 +84,10 @@ ${data.items.map(item => {
 
   <hr>
   <div class="trow"><span class="trow-l">TOTAL:</span><span class="trow-v">\u20B1${data.total.toFixed(2)}</span></div>
+${data.amountTendered != null ? `
+  <div class="prow"><span class="prow-q">AMT TENDERED:</span><span class="prow-a">\u20B1${data.amountTendered.toFixed(2)}</span></div>
+  <div class="trow"><span class="trow-l">CHANGE:</span><span class="trow-v">\u20B1${(data.change ?? 0).toFixed(2)}</span></div>
+` : ""}
   <hr>
 ${data.paymentType === "credit" ? `
   <div class="info">Customer: ${esc(data.customerName || "")}</div>

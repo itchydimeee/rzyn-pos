@@ -11,7 +11,7 @@ function generateOrNumber(): string {
 
 export async function POST(req: NextRequest) {
   const userId = req.headers.get("x-user-id") || "";
-  const { items, paymentType, customerName, customerPhone, memberId } = await req.json();
+  const { items, paymentType, amountTendered, customerName, customerPhone, memberId } = await req.json();
 
   if (!items || !items.length) {
     return NextResponse.json({ error: "No items" }, { status: 400 });
@@ -34,6 +34,14 @@ export async function POST(req: NextRequest) {
     transactionItems.push({ variantId: variant.id, quantity: item.quantity, priceAtSale: price });
   }
 
+  let change: number | undefined;
+  if (amountTendered != null) {
+    if (amountTendered < total) {
+      return NextResponse.json({ error: "Amount tendered is less than the total" }, { status: 400 });
+    }
+    change = Math.round((amountTendered - total) * 100) / 100;
+  }
+
   let orNumber: string;
   for (let attempt = 0; attempt < 5; attempt++) {
     orNumber = generateOrNumber();
@@ -49,6 +57,8 @@ export async function POST(req: NextRequest) {
       orNumber: orNumber!,
       cashierId: userId,
       total,
+      amountTendered: amountTendered ?? null,
+      change: change ?? null,
       paymentType,
       items: { create: transactionItems },
     },
@@ -96,6 +106,8 @@ export async function POST(req: NextRequest) {
     transactionId: transaction.id,
     orNumber: transaction.orNumber,
     total: transaction.total,
+    amountTendered: transaction.amountTendered,
+    change: transaction.change,
     createdAt: transaction.createdAt.toISOString(),
     paymentType: transaction.paymentType,
     items: receiptItems,

@@ -8,6 +8,8 @@ export interface ReceiptData {
   paymentType: "cash" | "gcash" | "credit";
   items: { productName: string; variantName: string; quantity: number; priceAtSale: number; lineTotal: number }[];
   total: number;
+  amountTendered?: number | null;
+  change?: number | null;
   customerName?: string;
   customerPhone?: string;
 }
@@ -55,6 +57,20 @@ export function Receipt({ data, showControls }: { data: ReceiptData; showControl
         <span>TOTAL:</span>
         <span style={{ whiteSpace: "nowrap" }}>{formatCurrency(data.total)}</span>
       </div>
+
+      {data.amountTendered != null && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, marginBottom: 2 }}>
+            <span>AMT TENDERED:</span>
+            <span style={{ whiteSpace: "nowrap" }}>{formatCurrency(data.amountTendered)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: 9, marginBottom: 4 }}>
+            <span>CHANGE:</span>
+            <span style={{ whiteSpace: "nowrap" }}>{formatCurrency(data.change ?? 0)}</span>
+          </div>
+        </>
+      )}
+
       <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
 
       {data.paymentType === "credit" && (
