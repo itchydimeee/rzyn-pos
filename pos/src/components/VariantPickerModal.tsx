@@ -55,7 +55,7 @@ export function VariantPickerModal({ open, onClose, product, onAddToCart }: Vari
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-lg w-[600px] max-w-[95vw] p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-xl shadow-lg w-150 max-w-[95vw] p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{product.name} - Select Variant</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
