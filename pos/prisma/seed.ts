@@ -10,12 +10,12 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const products = [
     { name: "Sardinas", category: "Canned Goods", variants: [
-      { name: "155g", sellPrice: 25, costPrice: 20, stock: 100, lowStockThreshold: 10 },
-      { name: "425g", sellPrice: 55, costPrice: 45, stock: 50, lowStockThreshold: 5 },
+      { name: "155g", sellPrice: 25, costPrice: 20, stock: 100, lowStockThreshold: 10, wholesalePrice: 22, wholesaleThreshold: 6 },
+      { name: "425g", sellPrice: 55, costPrice: 45, stock: 50, lowStockThreshold: 5, wholesalePrice: 49, wholesaleThreshold: 6 },
     ]},
     { name: "Corned Beef", category: "Canned Goods", variants: [
-      { name: "150g", sellPrice: 35, costPrice: 28, stock: 80, lowStockThreshold: 10 },
-      { name: "380g", sellPrice: 75, costPrice: 60, stock: 40, lowStockThreshold: 5 },
+      { name: "150g", sellPrice: 35, costPrice: 28, stock: 80, lowStockThreshold: 10, wholesalePrice: 30, wholesaleThreshold: 6 },
+      { name: "380g", sellPrice: 75, costPrice: 60, stock: 40, lowStockThreshold: 5, wholesalePrice: 66, wholesaleThreshold: 6 },
     ]},
     { name: "Rice", category: "Grains", variants: [
       { name: "1kg", sellPrice: 55, costPrice: 48, stock: 200, lowStockThreshold: 20 },
@@ -23,32 +23,32 @@ async function main() {
       { name: "10kg", sellPrice: 500, costPrice: 440, stock: 30, lowStockThreshold: 5 },
     ]},
     { name: "Cooking Oil", category: "Condiments", variants: [
-      { name: "500ml", sellPrice: 45, costPrice: 38, stock: 70, lowStockThreshold: 10 },
-      { name: "1L", sellPrice: 85, costPrice: 72, stock: 50, lowStockThreshold: 5 },
+      { name: "500ml", sellPrice: 45, costPrice: 38, stock: 70, lowStockThreshold: 10, wholesalePrice: 39, wholesaleThreshold: 6 },
+      { name: "1L", sellPrice: 85, costPrice: 72, stock: 50, lowStockThreshold: 5, wholesalePrice: 75, wholesaleThreshold: 6 },
     ]},
     { name: "Instant Noodles", category: "Noodles", variants: [
-      { name: "Regular", sellPrice: 10, costPrice: 7, stock: 200, lowStockThreshold: 30 },
-      { name: "Jumbo", sellPrice: 18, costPrice: 14, stock: 150, lowStockThreshold: 20 },
+      { name: "Regular", sellPrice: 10, costPrice: 7, stock: 200, lowStockThreshold: 30, wholesalePrice: 8, wholesaleThreshold: 6 },
+      { name: "Jumbo", sellPrice: 18, costPrice: 14, stock: 150, lowStockThreshold: 20, wholesalePrice: 15, wholesaleThreshold: 6 },
     ]},
     { name: "Coffee 3-in-1", category: "Beverages", variants: [
-      { name: "Single", sellPrice: 8, costPrice: 6, stock: 300, lowStockThreshold: 50 },
+      { name: "Single", sellPrice: 8, costPrice: 6, stock: 300, lowStockThreshold: 50, wholesalePrice: 6, wholesaleThreshold: 6 },
       { name: "Pack of 10", sellPrice: 75, costPrice: 60, stock: 40, lowStockThreshold: 5 },
     ]},
     { name: "Powdered Milk", category: "Beverages", variants: [
-      { name: "33g", sellPrice: 8, costPrice: 6, stock: 200, lowStockThreshold: 30 },
-      { name: "300g", sellPrice: 95, costPrice: 78, stock: 35, lowStockThreshold: 5 },
+      { name: "33g", sellPrice: 8, costPrice: 6, stock: 200, lowStockThreshold: 30, wholesalePrice: 6, wholesaleThreshold: 6 },
+      { name: "300g", sellPrice: 95, costPrice: 78, stock: 35, lowStockThreshold: 5, wholesalePrice: 83, wholesaleThreshold: 6 },
     ]},
     { name: "Shampoo", category: "Personal Care", variants: [
-      { name: "12ml Sachet", sellPrice: 8, costPrice: 5, stock: 250, lowStockThreshold: 30 },
-      { name: "200ml", sellPrice: 85, costPrice: 68, stock: 30, lowStockThreshold: 5 },
+      { name: "12ml Sachet", sellPrice: 8, costPrice: 5, stock: 250, lowStockThreshold: 30, wholesalePrice: 5, wholesaleThreshold: 6 },
+      { name: "200ml", sellPrice: 85, costPrice: 68, stock: 30, lowStockThreshold: 5, wholesalePrice: 75, wholesaleThreshold: 6 },
     ]},
     { name: "Laundry Detergent", category: "Household", variants: [
-      { name: "70g Bar", sellPrice: 15, costPrice: 11, stock: 180, lowStockThreshold: 20 },
-      { name: "1kg Powder", sellPrice: 120, costPrice: 95, stock: 40, lowStockThreshold: 5 },
+      { name: "70g Bar", sellPrice: 15, costPrice: 11, stock: 180, lowStockThreshold: 20, wholesalePrice: 12, wholesaleThreshold: 6 },
+      { name: "1kg Powder", sellPrice: 120, costPrice: 95, stock: 40, lowStockThreshold: 5, wholesalePrice: 106, wholesaleThreshold: 6 },
     ]},
     { name: "Canned Tuna", category: "Canned Goods", variants: [
-      { name: "155g", sellPrice: 28, costPrice: 22, stock: 90, lowStockThreshold: 10 },
-      { name: "425g", sellPrice: 60, costPrice: 48, stock: 45, lowStockThreshold: 5 },
+      { name: "155g", sellPrice: 28, costPrice: 22, stock: 90, lowStockThreshold: 10, wholesalePrice: 24, wholesaleThreshold: 6 },
+      { name: "425g", sellPrice: 60, costPrice: 48, stock: 45, lowStockThreshold: 5, wholesalePrice: 53, wholesaleThreshold: 6 },
     ]},
   ];
 

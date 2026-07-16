@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface VariantPickerModalProps {
@@ -21,12 +21,13 @@ interface VariantPickerModalProps {
 }
 
 export function VariantPickerModal({ open, onClose, product, onAddToCart }: VariantPickerModalProps) {
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
 
   if (!open) return null;
 
   function getQuantity(variantId: string) {
-    return quantities[variantId] ?? 1;
+    const val = parseInt(quantities[variantId] ?? "");
+    return isNaN(val) || val < 1 ? 1 : val;
   }
 
   function getEffectivePrice(v: typeof product.variants[number]) {
@@ -38,9 +39,11 @@ export function VariantPickerModal({ open, onClose, product, onAddToCart }: Vari
   }
 
   function updateQuantity(variantId: string, delta: number) {
+    const current = getQuantity(variantId);
+    const next = Math.max(1, current + delta);
     setQuantities((prev) => ({
       ...prev,
-      [variantId]: Math.max(1, (prev[variantId] ?? 1) + delta),
+      [variantId]: String(next),
     }));
   }
 
@@ -53,7 +56,12 @@ export function VariantPickerModal({ open, onClose, product, onAddToCart }: Vari
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-lg w-[600px] max-w-[95vw] p-6 max-h-[90vh] overflow-y-auto">
-        <h3 className="font-semibold mb-4">{product.name} - Select Variant</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">{product.name} - Select Variant</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           {product.variants.map((v) => {
@@ -97,7 +105,17 @@ export function VariantPickerModal({ open, onClose, product, onAddToCart }: Vari
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className={`w-7 text-center font-medium text-sm ${isWholesale ? "text-amber-600" : ""}`}>{qty}</span>
+                    <input
+                      type="number"
+                      value={quantities[v.id] ?? "1"}
+                      onChange={(e) => {
+                        setQuantities((prev) => ({
+                          ...prev,
+                          [v.id]: e.target.value,
+                        }));
+                      }}
+                      className={`w-12 text-center font-medium text-sm border rounded ${isWholesale ? "text-amber-600" : ""}`}
+                    />
                     <button
                       onClick={() => updateQuantity(v.id, 1)}
                       className="p-1 rounded hover:bg-gray-100"
@@ -113,7 +131,7 @@ export function VariantPickerModal({ open, onClose, product, onAddToCart }: Vari
                 <button
                   onClick={() => {
                     onAddToCart({ id: v.id, name: v.name, sellPrice: v.sellPrice, wholesalePrice: v.wholesalePrice, wholesaleThreshold: v.wholesaleThreshold }, qty);
-                    onClose();
+                    setQuantities((prev) => ({ ...prev, [v.id]: "1" }));
                   }}
                   className="mt-2 w-full py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
                 >

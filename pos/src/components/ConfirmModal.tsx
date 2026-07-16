@@ -16,6 +16,7 @@ interface ConfirmModalProps {
   children?: React.ReactNode;
   confirmSecondaryLabel?: string;
   onConfirmSecondary?: () => void;
+  confirmDisabled?: boolean;
 }
 
 export function ConfirmModal({
@@ -30,6 +31,7 @@ export function ConfirmModal({
   children,
   confirmSecondaryLabel,
   onConfirmSecondary,
+  confirmDisabled = false,
 }: ConfirmModalProps) {
   const [submitted, setSubmitted] = useState(false);
 
@@ -52,6 +54,7 @@ export function ConfirmModal({
   if (!open) return null;
 
   const isDisabled = loading || submitted;
+  const isConfirmDisabled = isDisabled || confirmDisabled;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -70,7 +73,7 @@ export function ConfirmModal({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={isDisabled}
+              disabled={isConfirmDisabled}
               className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 ${
                 variant === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
               }`}
@@ -81,7 +84,7 @@ export function ConfirmModal({
             {confirmSecondaryLabel && onConfirmSecondary && (
               <button
                 onClick={handleSecondaryConfirm}
-                disabled={isDisabled}
+                disabled={isConfirmDisabled}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 flex items-center gap-1.5"
               >
                 {confirmSecondaryLabel}

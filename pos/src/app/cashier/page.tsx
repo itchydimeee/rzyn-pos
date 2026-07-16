@@ -44,6 +44,7 @@ export default function CashierPOSPage() {
   const [memberSearch, setMemberSearch] = useState("");
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
+  const [cartQuantityInputs, setCartQuantityInputs] = useState<Record<string, string>>({});
   const [showGcashQr, setShowGcashQr] = useState(false);
   const [amountTendered, setAmountTendered] = useState("");
 
@@ -155,8 +156,6 @@ export default function CashierPOSPage() {
         wholesaleThreshold: variant.wholesaleThreshold ?? null,
       }];
     });
-    setShowVariantPicker(false);
-    setSelectedProduct(null);
   }
 
   function updateQuantity(variantId: string, delta: number) {
@@ -348,7 +347,42 @@ export default function CashierPOSPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => updateQuantity(item.variantId, -1)} className="p-0.5 rounded hover:bg-gray-100"><Minus className="w-3 h-3" /></button>
-                    <span className={`w-6 text-center font-medium ${item.wholesaleActive ? "text-amber-600" : ""}`}>{item.quantity}</span>
+                    <input
+                      type="number"
+                      value={cartQuantityInputs[item.variantId] ?? String(item.quantity)}
+                      onChange={(e) => {
+                        setCartQuantityInputs((prev) => ({
+                          ...prev,
+                          [item.variantId]: e.target.value,
+                        }));
+                      }}
+                      onBlur={() => {
+                        const raw = cartQuantityInputs[item.variantId];
+                        if (raw === undefined || raw === String(item.quantity)) return;
+                        const val = parseInt(raw);
+                        if (isNaN(val) || val < 0) {
+                          setCartQuantityInputs((prev) => {
+                            const next = { ...prev };
+                            delete next[item.variantId];
+                            return next;
+                          });
+                          return;
+                        }
+                        setCartQuantityInputs((prev) => {
+                          const next = { ...prev };
+                          delete next[item.variantId];
+                          return next;
+                        });
+                        setCart((prev) => {
+                          if (val === 0) return prev.filter((i) => i.variantId !== item.variantId);
+                          const { appliedPrice, wholesaleActive } = computeAppliedPrice(item.price, val, item.wholesalePrice, item.wholesaleThreshold);
+                          return prev.map((i) =>
+                            i.variantId === item.variantId ? { ...i, quantity: val, appliedPrice, wholesaleActive } : i
+                          );
+                        });
+                      }}
+                      className={`w-10 text-center font-medium text-xs border rounded ${item.wholesaleActive ? "text-amber-600" : ""}`}
+                    />
                     <button onClick={() => updateQuantity(item.variantId, 1)} className="p-0.5 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
                   </div>
                   <button onClick={() => removeItem(item.variantId)} className="p-0.5 text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
@@ -500,6 +534,7 @@ export default function CashierPOSPage() {
           confirmLabel={status === "offline" ? "Queue Sale" : paymentType === "credit" ? "Process Credit" : "Complete"}
           confirmSecondaryLabel={status === "offline" ? undefined : "Complete & Print"}
           onConfirmSecondary={status === "offline" ? undefined : () => handleCheckout(true)}
+          confirmDisabled={paymentType !== "credit" && (parsedAmount <= 0 || parsedAmount < total)}
           loading={isPending}
         >
           {checkoutSummary}
